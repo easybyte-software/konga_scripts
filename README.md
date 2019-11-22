@@ -35,9 +35,9 @@ Permette di generare automaticamente le versioni web e miniatura (se mancanti) p
 
 Immagine trovata | Genera immagine web | Genera miniatura
 ---------------- | ------------------- | ----------------
-Immagine normale | [x] | [x]
-Immagine web | [ ] | [x]
-Miniatura | [ ] | [ ]
+Immagine normale | <ul><li>[x]</li></ul> | <ul><li>[x]</li></ul>
+Immagine web | <ul><li>[ ]</li></ul> | <ul><li>[x]</li></ul>
+Miniatura | <ul><li>[ ]</li></ul> | <ul><li>[ ]</li></ul>
 
 Alla fine della procedura verrà mostrato un riepilogo sulle immagini generate automaticamente.
 
@@ -61,9 +61,9 @@ Dipendentemente dalla dimensione iniziale dell'immagine, verranno anche generate
 
 Dimensione immagine | Immagine normale | Immagine web | Miniatura
 ------------------- | ---------------- | ------------ | ---------
-maggiore della dimensione web | [x] | [x] (generata) | [x] (generata)
-maggiore di 48 x 48 | [ ] | [x] | [x] (generata)
-fino a 48 x48 | [ ] | [ ] | [x]
+maggiore della dimensione web | <ul><li>[x]</li></ul> | <ul><li>[x] (generata)</li></ul> | <ul><li>[x] (generata)</li></ul>
+maggiore di 48 x 48 | <ul><li>[ ]</li></ul> | <ul><li>[x]</li></ul> | <ul><li>[x] (generata)</li></ul>
+fino a 48 x48 | <ul><li>[ ]</li></ul> | <ul><li>[ ]</li></ul> | <ul><li>[x]</li></ul>
 
 Notare che la *dimensione web* è quella impostata in *configurazione azienda -> Magazzino* (valore predefinito: 240 x 320)
 
