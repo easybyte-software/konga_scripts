@@ -35,9 +35,9 @@ Permette di generare automaticamente le versioni web e miniatura (se mancanti) p
 
 Immagine trovata | Genera immagine web | Genera miniatura
 ---------------- | ------------------- | ----------------
-Immagine normale | <ul><li>[x] &nbsp;</li></ul> | <ul><li>[x] &nbsp;</li></ul>
-Immagine web | <ul><li>[ ] &nbsp;</li></ul> | <ul><li>[x] &nbsp;</li></ul>
-Miniatura | <ul><li>[ ] &nbsp;</li></ul> | <ul><li>[ ] &nbsp;</li></ul>
+Immagine normale | :heavy_check_mark: | :heavy_check_mark:
+Immagine web | | :heavy_check_mark:
+Miniatura | |
 
 Alla fine della procedura verrà mostrato un riepilogo sulle immagini generate automaticamente.
 
@@ -61,9 +61,9 @@ Dipendentemente dalla dimensione iniziale dell'immagine, verranno anche generate
 
 Dimensione immagine | Immagine normale | Immagine web | Miniatura
 ------------------- | ---------------- | ------------ | ---------
-maggiore della dimensione web | <ul><li>[x] &nbsp;</li></ul> | <ul><li>[x] (generata)</li></ul> | <ul><li>[x] (generata)</li></ul>
-maggiore di 48 x 48 | <ul><li>[ ] &nbsp;</li></ul> | <ul><li>[x] &nbsp;</li></ul> | <ul><li>[x] (generata)</li></ul>
-fino a 48 x48 | <ul><li>[ ] &nbsp;</li></ul> | <ul><li>[ ] &nbsp;</li></ul> | <ul><li>[x] &nbsp;</li></ul>
+maggiore della dimensione web | :heavy_check_mark: | :heavy_check_mark: (generata) | :heavy_check_mark: (generata)
+maggiore di 48 x 48 | | :heavy_check_mark: | :heavy_check_mark: (generata)
+fino a 48 x48 | | | :heavy_check_mark:
 
 Notare che la *dimensione web* è quella impostata in *configurazione azienda -> Magazzino* (valore predefinito: 240 x 320)
 
