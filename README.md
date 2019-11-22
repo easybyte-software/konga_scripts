@@ -27,6 +27,10 @@ Gli script contenuti in questo repository saranno a questo punto pronti per esse
 
 # Script contenuti
 
+- [Consolida immagini](#consolida-immagini)
+- [Importazione immagini](#importazione-immagini)
+
+
 ## Consolida immagini
 
 **Sorgente**: `consolida_immagini.py`
