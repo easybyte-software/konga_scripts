@@ -18,15 +18,13 @@ import kongaui
 from PIL import Image
 
 
-CODE_AZIENDA	= '00000001'
-
 TIPO_NORMALE	= 1
 TIPO_WEB		= 2
 TIPO_MINIATURA	= 3
 
 
 
-def load_record(record, embedded, client, log):
+def load_record(record, embedded, client, log, code_azienda):
 	if embedded:
 		if ('Contenuto' not in record) and ('id' in record):
 			record['Contenuto'] = client.select_data('EB_DatiBinari', ['Contenuto'], kongalib.OperandEQ('id', record['id']))[0][0]
@@ -35,7 +33,7 @@ def load_record(record, embedded, client, log):
 		filename = os.path.basename(record.get('NomeAllegato', ''))
 		if not filename:
 			return
-		external_path = kongautil.get_external_images_path('EB_Articoli', None if (record.get('ref_Azienda', None) is None) else CODE_AZIENDA)
+		external_path = kongautil.get_external_images_path('EB_Articoli', None if (record.get('ref_Azienda', None) is None) else code_azienda)
 		if external_path is None:
 			data = None
 			log.error('Percorso delle immagini non accessibile; controllare la configurazione del database')
@@ -111,8 +109,17 @@ def gen_image(source_record, dest_record, dest_size, tipo, code_articolo, embedd
 
 
 def main():
-	if kongaui.message_box("Questo script consolida le immagini di tutti gli articoli del database, in modo da generare automaticamente le versioni web e miniatura a partire dall'immagine normale. Si desidera continuare?", "Consolida immagini", kongaui.BUTTON_OK|kongaui.BUTTON_CANCEL) == kongaui.BUTTON_CANCEL:
+	params = kongaui.execute_form([ {
+				'name': 'code_azienda',
+				'label': "Codice azienda",
+				'default': kongautil.get_window_vars().get('COMPANY_CODE', ''),
+			} ],
+			"Consolida immagini",
+			"Questo script consolida le immagini di tutti gli articoli comuni e aziendali di un database, in modo da generare automaticamente le versioni web e miniatura a partire dall'immagine normale.",
+			condition = "code_azienda")
+	if not params:
 		return
+
 	log = kongalib.Log()
 	client = kongautil.connect()
 	updated_arts = []
@@ -122,7 +129,7 @@ def main():
 	client.begin_transaction()
 	try:
 		embed_images = (client.select_data('EB_Master', ['EB_Master.val_ImagesStorageType'])[0][0] == 1)
-		id_azienda, web_width, web_height = client.select_data('EB_StatoArchivi', ['EB_StatoArchivi.ref_Azienda', 'EB_StatoArchivi.LarghezzaImgWeb', 'EB_StatoArchivi.AltezzaImgWeb'], kongalib.OperandEQ('EB_StatoArchivi.ref_Azienda.Codice', CODE_AZIENDA))[0]
+		id_azienda, web_width, web_height = client.select_data('EB_StatoArchivi', ['EB_StatoArchivi.ref_Azienda', 'EB_StatoArchivi.LarghezzaImgWeb', 'EB_StatoArchivi.AltezzaImgWeb'], kongalib.OperandEQ('EB_StatoArchivi.ref_Azienda.Codice', params['code_azienda']))[0]
 		id_tabella = client.select_data('EB_Tabelle', ['EB_Tabelle.id'], kongalib.OperandEQ('EB_Tabelle.Nome', 'EB_Articoli'))[0][0]
 
 		records = {}
@@ -147,9 +154,9 @@ def main():
 			record_web = image_data[TIPO_WEB]
 			record_thumb = image_data[TIPO_MINIATURA]
 
-			load_record(record_full, embed_images, client, log)
-			load_record(record_web, embed_images, client, log)
-			load_record(record_thumb, embed_images, client, log)
+			load_record(record_full, embed_images, client, log, params['code_azienda'])
+			load_record(record_web, embed_images, client, log, params['code_azienda'])
+			load_record(record_thumb, embed_images, client, log, params['code_azienda'])
 			updated = False
 
 			if (record_full.get('@image', None) is not None) and (record_web.get('@image', None) is None):
