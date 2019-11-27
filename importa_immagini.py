@@ -35,7 +35,7 @@ FORM_FIELDS = [
 	{
 		'name': 'code_azienda',
 		'label': "Codice azienda di destinazione",
-		'default': kongautil.get_window_vars().get('COMPANY_CODE', ''),
+		'type': 'company_code',
 	},
 	{
 		'name': 'fieldname',

@@ -112,7 +112,7 @@ def main():
 	params = kongaui.execute_form([ {
 				'name': 'code_azienda',
 				'label': "Codice azienda",
-				'default': kongautil.get_window_vars().get('COMPANY_CODE', ''),
+				'type': 'company_code',
 			} ],
 			"Consolida immagini",
 			"Questo script consolida le immagini di tutti gli articoli comuni e aziendali di un database, in modo da generare automaticamente le versioni web e miniatura a partire dall'immagine normale.",
