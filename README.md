@@ -27,8 +27,13 @@ Gli script contenuti in questo repository saranno a questo punto pronti per esse
 
 # Script contenuti
 
-- [Consolida immagini](#consolida-immagini)
-- [Importazione immagini](#importazione-immagini)
+- [Script di utilità comune per Konga](#script-di-utilit%c3%a0-comune-per-konga)
+  - [Installazione su Konga](#installazione-su-konga)
+  - [Installazione da linea di comando](#installazione-da-linea-di-comando)
+- [Script contenuti](#script-contenuti)
+  - [Consolida immagini](#consolida-immagini)
+  - [Importazione immagini](#importazione-immagini)
+  - [Riposiziona immagini e allegati](#riposiziona-immagini-e-allegati)
 
 
 ## Consolida immagini
@@ -74,3 +79,18 @@ Notare che la *dimensione web* è quella impostata in *configurazione azienda ->
 Alla fine della procedura verrà mostrato un riepilogo sulle immagini importate e generate automaticamente.
 
 > **Attenzione**: per ogni articolo per cui è importata un'immagine, tutte le precedenti immagini ad esso associate (normale, web e miniatura) verranno perse.
+
+---
+
+## Riposiziona immagini e allegati
+
+**Sorgente**: `riposiziona_immagini_allegati.py`
+
+Consolida la struttura delle directory dove sono salvati allegati ed immagini del database. In particolare, questo script assicura che i file siano posizionati in sotto-cartelle gerarchiche, in modo che ogni sotto-cartella abbia al massimo 1000 file al suo interno. Sarà possibile specificare alcune opzioni all'avvio dello script:
+
+* Codice dell'azienda; permette di specificare di quale azienda consolidare allegati e immagini.
+* Consolida nomi file; se abilitato, tutti i file saranno rinominati nella forma `<CODE>_<UUID>`, dove `<CODE>` è il codice del record abbinato all'immagine o allegato, e `UUID` è un UUID univoco generato automaticamente.
+* Elimina riferimenti non validi; se abilitato, tutti gli allegati e le immagini che fanno riferimento a nomi di file non validi (ovvero file non più esistenti o inaccessibili) verranno eliminati.
+* Esegui simulazione; se specificata, questa opzione fa in modo che lo script simuli tutte le sue operazioni senza effettuare alcuna modifica reale al database o al filesystem.
+
+Al termine dell'esecuzione dello script, verrà mostrato un log di riepilogo con le informazioni sulle operazioni effettuate (o simulate).
