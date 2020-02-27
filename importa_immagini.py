@@ -120,7 +120,7 @@ def main():
 						external_path = os.path.join(external_path, subdir)
 					if not os.path.exists(external_path):
 						os.makedirs(external_path)
-						os.chmod(dest_dir, 0o2777)
+						os.chmod(external_path, 0o2777)
 					to_delete = []
 
 					if (size[0] > web_width) or (size[1] > web_height):
