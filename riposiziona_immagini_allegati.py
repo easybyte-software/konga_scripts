@@ -17,17 +17,44 @@ import kongaui
 
 
 
-CODE_AZIENDA		= '00000001'
-ID_AZIENDA			= 2
-
 TIPO_ALLEGATO		= 0
 TIPO_IMG_NORMALE	= 1
 TIPO_IMG_WEB		= 2
 TIPO_IMG_MINIATURA	= 3
 
 
+FORM_FIELDS = [
+	{
+		'name': 'code_azienda',
+		'label': "Codice azienda",
+		'default': kongautil.get_window_vars().get('COMPANY_CODE', ''),
+	},
+	{
+		'name': 'rename',
+		'label': "Consolida nomi file",
+		'tip': "Rinomina i file in modo da essere nella forma [CODE]_[UUID]",
+		'type': 'bool',
+		'default': False,
+	},
+	{
+		'name': 'delete',
+		'label': "Elimina riferimenti non validi",
+		'tip': "Elimina i riferimenti ai file non trovati",
+		'type': 'bool',
+		'default': False,
+	},
+	{
+		'name': 'simulate',
+		'label': "Esegui simulazione",
+		'tip': "Simula tutte le operazioni ma non apportare modifiche; verrà mostrato un log riepilogativo",
+		'type': 'bool',
+		'default': True,
+	}
+]
 
-def reposition_entry(client, entry, fs_images, fs_data, tables, log, restore, code_azienda, rename, delete, simulate):
+
+
+def reposition_entry(client, entry, fs_images, fs_data, tables, log, restore, code_azienda, id_azienda, rename, delete, simulate):
 	old_filename = os.path.basename(entry['EB_DatiBinari.NomeAllegato'])
 	table_name = tables[entry['EB_DatiBinari.ref_Tabella']]
 	info = client.get_data_dictionary().get_field_info('%s.id' % table_name)
@@ -49,7 +76,7 @@ def reposition_entry(client, entry, fs_images, fs_data, tables, log, restore, co
 		else:
 			new_filename = old_filename
 		if (table_name in ('EB_DocumentiFiscali', 'EB_OrdiniClienti', 'EB_OrdiniFornitori', 'EB_CaricoScarico')) and (entry.get('EB_DatiBinari.ref_Azienda', None) is None):
-			data['EB_DatiBinari.ref_Azienda'] = ID_AZIENDA
+			data['EB_DatiBinari.ref_Azienda'] = id_azienda
 		if data:
 			entry.update(data)
 			client.update_record('EB_DatiBinari', data, id=entry['EB_DatiBinari.id'])
@@ -106,50 +133,19 @@ def reposition_entry(client, entry, fs_images, fs_data, tables, log, restore, co
 
 
 def main():
-	params = kongaui.execute_form([ {
-				'name': 'code_azienda',
-				'label': "Codice azienda",
-				'default': kongautil.get_window_vars().get('COMPANY_CODE', ''),
-			},
-			{
-				'name': 'rename',
-				'label': "Consolida nomi file",
-				'tip': "Rinomina i file in modo da essere nella forma [CODE]_[UUID]",
-				'type': 'bool',
-				'default': False,
-			},
-			{
-				'name': 'delete',
-				'label': "Elimina riferimenti non validi",
-				'tip': "Elimina i riferimenti ai file non trovati",
-				'type': 'bool',
-				'default': False,
-			},
-			{
-				'name': 'simulate',
-				'label': "Esegui simulazione",
-				'tip': "Simula tutte le operazioni ma non apportare modifiche; verrà mostrato un log riepilogativo",
-				'type': 'bool',
-				'default': True,
-			}
-			],
+	params = kongaui.execute_form(FORM_FIELDS,
 			"Riposizione immagini e allegati",
 			"Questo script consolida la struttura delle directory dove vengono salvati immagini e allegati del database; in particolare, verrà creata una struttura gerarchica con sotto-directory, dentro cui ognuna verrà posizionato un massimo di 1000 file.<br/><br/>Sarà possibile inoltre consolidare anche i nomi dei file in modo da includere il codice del record corrispondente seguito da un UUID. Se richiesto, i riferimenti a file non esistenti verranno eliminati.<br/><br/>E' possibile eseguire una simulazione preventiva delle operazioni, che non ha alcun effetto su database e/o filesystem; alla fine verrà mostrato un log riepilogativo con il risultato di tutte le operazioni simulate.<br/><br/>",
 			condition = "code_azienda")
 	if not params:
 		return
-	# params = {
-	# 	'code_azienda':		CODE_AZIENDA,
-	# 	'rename':			True,
-	# 	'delete':			False,
-	# 	'simulate':			False,
-	# }
 	log = kongalib.Log()
 	client = kongautil.connect()
 	restore = []
 	kongaui.open_progress('Riposizionamento allegati in corso...')
 	client.begin_transaction()
 	try:
+		id_azienda = client.select_data('EB_Aziende', ['EB_Aziende.id'], OperandEQ('EB_Aziende.Codice', params['code_azienda']))[0][0]
 		fs_images = (client.select_data('EB_Master', ['EB_Master.val_ImagesStorageType'])[0][0] == 0)
 		fs_data = (client.select_data('EB_Master', ['EB_Master.val_AttachmentsStorageType'])[0][0] == 0)
 		results = client.select_data('EB_Tabelle', ['EB_Tabelle.id', 'EB_Tabelle.Nome'])
@@ -159,7 +155,7 @@ def main():
 			kongaui.set_progress((index * 100.0) / len(results), None, 'Allegato %d di %d' % (index+1, len(results)))
 			if kongaui.is_progress_aborted():
 				break
-			reposition_entry(client, entry, fs_images, fs_data, tables, log, restore, params['code_azienda'], params['rename'], params['delete'], params['simulate'])
+			reposition_entry(client, entry, fs_images, fs_data, tables, log, restore, params['code_azienda'], id_azienda, params['rename'], params['delete'], params['simulate'])
 	finally:
 		def do_restore():
 			for dest, source in restore:

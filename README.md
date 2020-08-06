@@ -94,3 +94,17 @@ Consolida la struttura delle directory dove sono salvati allegati ed immagini de
 * Esegui simulazione; se specificata, questa opzione fa in modo che lo script simuli tutte le sue operazioni senza effettuare alcuna modifica reale al database o al filesystem.
 
 Al termine dell'esecuzione dello script, verrà mostrato un log di riepilogo con le informazioni sulle operazioni effettuate (o simulate).
+
+---
+
+## Consolida reparti POS
+
+**Sorgente**: `consolida_reparti.py`
+
+Controlla eventuali incongruenze tra le aliquote IVA degli articoli di magazzino e le aliquote IVA dei reparti POS abbinati agli stessi articoli. Il consolidamento dei dati e la conseguente risoluzione di queste possibili incongruenze dipende dalle opzioni selezionate all'avvio dello script:
+
+* Codice dell'azienda; identifica l'azienda per cui consolidare gli articoli.
+* Tipo di correzione; specifica come comportarsi in caso di incongruenza dei dati, ossia quale modifica apportare all'articolo: si può scegliere se impostare su di esso l'aliquota IVA del reparto POS abbinato, oppure se impostare il numero di reparto in base all'aliquota IVA abbinata.
+* Esegui simulazione; se specificata, questa opzione fa in modo che lo script simuli tutte le sue operazioni senza effettuare alcuna modifica reale al database.
+
+Al termine dell'esecuzione dello script, verrà mostrato un log di riepilogo con le informazioni sulle operazioni effettuate (o simulate).
