@@ -32,6 +32,7 @@ Gli script contenuti in questo repository saranno a questo punto pronti per esse
   - [Installazione da linea di comando](#installazione-da-linea-di-comando)
 - [Script contenuti](#script-contenuti)
   - [Consolida immagini](#consolida-immagini)
+  - [Consolida reparti POS](#consolida-reparti-pos)
   - [Importazione immagini](#importazione-immagini)
   - [Riposiziona immagini e allegati](#riposiziona-immagini-e-allegati)
 
@@ -49,6 +50,20 @@ Immagine web | | :heavy_check_mark:
 Miniatura | |
 
 Alla fine della procedura verrà mostrato un riepilogo sulle immagini generate automaticamente.
+
+---
+
+## Consolida reparti POS
+
+**Sorgente**: `consolida_reparti.py`
+
+Controlla eventuali incongruenze tra le aliquote IVA degli articoli di magazzino e le aliquote IVA dei reparti POS abbinati agli stessi articoli. Il consolidamento dei dati e la conseguente risoluzione di queste possibili incongruenze dipende dalle opzioni selezionate all'avvio dello script:
+
+* Codice dell'azienda; identifica l'azienda per cui consolidare gli articoli.
+* Tipo di correzione; specifica come comportarsi in caso di incongruenza dei dati, ossia quale modifica apportare all'articolo: si può scegliere se impostare su di esso l'aliquota IVA del reparto POS abbinato, oppure se impostare il numero di reparto in base all'aliquota IVA abbinata.
+* Esegui simulazione; se specificata, questa opzione fa in modo che lo script simuli tutte le sue operazioni senza effettuare alcuna modifica reale al database.
+
+Al termine dell'esecuzione dello script, verrà mostrato un log di riepilogo con le informazioni sulle operazioni effettuate (o simulate).
 
 ---
 
@@ -92,19 +107,5 @@ Consolida la struttura delle directory dove sono salvati allegati ed immagini de
 * Consolida nomi file; se abilitato, tutti i file saranno rinominati nella forma `<CODE>_<UUID>`, dove `<CODE>` è il codice del record abbinato all'immagine o allegato, e `UUID` è un UUID univoco generato automaticamente.
 * Elimina riferimenti non validi; se abilitato, tutti gli allegati e le immagini che fanno riferimento a nomi di file non validi (ovvero file non più esistenti o inaccessibili) verranno eliminati.
 * Esegui simulazione; se specificata, questa opzione fa in modo che lo script simuli tutte le sue operazioni senza effettuare alcuna modifica reale al database o al filesystem.
-
-Al termine dell'esecuzione dello script, verrà mostrato un log di riepilogo con le informazioni sulle operazioni effettuate (o simulate).
-
----
-
-## Consolida reparti POS
-
-**Sorgente**: `consolida_reparti.py`
-
-Controlla eventuali incongruenze tra le aliquote IVA degli articoli di magazzino e le aliquote IVA dei reparti POS abbinati agli stessi articoli. Il consolidamento dei dati e la conseguente risoluzione di queste possibili incongruenze dipende dalle opzioni selezionate all'avvio dello script:
-
-* Codice dell'azienda; identifica l'azienda per cui consolidare gli articoli.
-* Tipo di correzione; specifica come comportarsi in caso di incongruenza dei dati, ossia quale modifica apportare all'articolo: si può scegliere se impostare su di esso l'aliquota IVA del reparto POS abbinato, oppure se impostare il numero di reparto in base all'aliquota IVA abbinata.
-* Esegui simulazione; se specificata, questa opzione fa in modo che lo script simuli tutte le sue operazioni senza effettuare alcuna modifica reale al database.
 
 Al termine dell'esecuzione dello script, verrà mostrato un log di riepilogo con le informazioni sulle operazioni effettuate (o simulate).
