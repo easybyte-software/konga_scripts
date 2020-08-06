@@ -23,8 +23,8 @@ FORM_FIELDS = [
 		'label': "Tipo di correzione",
 		'type': 'choice',
 		'items': [
-			"Assegna aliquota del reparto all'articolo",
 			"Assegna reparto all'articolo in base all'aliquota",
+			"Assegna aliquota del reparto all'articolo",
 		],
 		'default': 0,
 	},
@@ -74,9 +74,6 @@ def main():
 						log.warning('L\'articolo "%s" ha la percentuale dell\'aliquota IVA corrispodente alla percentuale dell\'aliquota IVA del reparto abbinato, ma le aliquote IVA si riferiscono a record differenti nella tabella delle aliquote IVA' % product[1])
 				else:
 					if params['action'] == 0:
-						client.update_record('EB_Articoli', { 'EB_Articoli.ref_AliquotaIVA': dep_vat_id }, id=product[0])
-						log.info('Assegnata l\'aliquota IVA "%s" del reparto %d all\'articolo "%s"' % (vat_to_code[dep_vat_id], product[3], product[1]))
-					else:
 						dep = vat_id_to_dep.get(product[2], None)
 						if dep is None:
 							if product[2] is None:
@@ -86,6 +83,9 @@ def main():
 						else:
 							client.update_record('EB_Articoli', { 'EB_Articoli.NumeroReparto': dep }, id=product[0])
 							log.info('Assegnato il reparto %d con aliquota IVA "%s" all\'articolo "%s"' % (dep, vat_to_code[dep_to_vat_id[dep]], product[1]))
+					else:
+						client.update_record('EB_Articoli', { 'EB_Articoli.ref_AliquotaIVA': dep_vat_id }, id=product[0])
+						log.info('Assegnata l\'aliquota IVA "%s" del reparto %d all\'articolo "%s"' % (vat_to_code[dep_vat_id], product[3], product[1]))
 	finally:
 		if kongaui.is_progress_aborted():
 			client.rollback_transaction()
