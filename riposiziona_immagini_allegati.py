@@ -1,4 +1,4 @@
-# -*- title: Riposiziona immagini e allegati -*-
+# -*- title: Utilità / Riposiziona immagini e allegati -*-
 # -*- coding: utf-8 -*-
 # -*- py3k-safe -*-
 
@@ -46,7 +46,7 @@ FORM_FIELDS = [
 	{
 		'name': 'simulate',
 		'label': "Esegui simulazione",
-		'tip': "Simula tutte le operazioni ma non apportare modifiche; verrà mostrato un log riepilogativo",
+		'tip': "Simula tutte le operazioni ma non apportare modifiche",
 		'type': 'bool',
 		'default': True,
 	}
@@ -135,7 +135,7 @@ def reposition_entry(client, entry, fs_images, fs_data, tables, log, restore, co
 def main():
 	params = kongaui.execute_form(FORM_FIELDS,
 			"Riposizione immagini e allegati",
-			"Questo script consolida la struttura delle directory dove vengono salvati immagini e allegati del database; in particolare, verrà creata una struttura gerarchica con sotto-directory, dentro cui ognuna verrà posizionato un massimo di 1000 file.<br/><br/>Sarà possibile inoltre consolidare anche i nomi dei file in modo da includere il codice del record corrispondente seguito da un UUID. Se richiesto, i riferimenti a file non esistenti verranno eliminati.<br/><br/>E' possibile eseguire una simulazione preventiva delle operazioni, che non ha alcun effetto su database e/o filesystem; alla fine verrà mostrato un log riepilogativo con il risultato di tutte le operazioni simulate.<br/><br/>",
+			"Questo script consolida la struttura delle directory dove vengono salvati immagini e allegati del database; in particolare, verrà creata una struttura gerarchica con sotto-directory, dentro cui ognuna verrà posizionato un massimo di 1000 file.<br/><br/>Sarà possibile inoltre consolidare anche i nomi dei file in modo da includere il codice del record corrispondente seguito da un UUID. Se richiesto, i riferimenti a file non esistenti verranno eliminati.<br/><br/>E' possibile eseguire una simulazione preventiva delle operazioni, che non ha alcun effetto su database e/o filesystem; alla fine verrà mostrato un log riepilogativo con il risultato di tutte le operazioni eseguite o simulate.<br/><br/>",
 			condition = "code_azienda")
 	if not params:
 		return

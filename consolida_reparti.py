@@ -1,4 +1,4 @@
-# -*- title: Consolida reparti POS -*-
+# -*- title: Utilità / Consolida reparti POS -*-
 # -*- coding: utf-8 -*-
 # -*- py3k-safe -*-
 
@@ -20,18 +20,18 @@ FORM_FIELDS = [
 	},
 	{
 		'name': 'action',
-		'label': "Tipo di correzione",
+		'label': "Tipo di correzione agli articoli",
 		'type': 'choice',
 		'items': [
-			"Assegna reparto all'articolo in base all'aliquota",
-			"Assegna aliquota del reparto all'articolo",
+			"Assegna reparto in base all'aliquota IVA",
+			"Assegna aliquota IVA in base al reparto",
 		],
 		'default': 0,
 	},
 	{
 		'name': 'simulate',
 		'label': "Esegui simulazione",
-		'tip': "Simula tutte le operazioni ma non apportare modifiche; verrà mostrato un log riepilogativo",
+		'tip': "Simula tutte le operazioni ma non apportare modifiche",
 		'type': 'bool',
 		'default': True,
 	}
@@ -41,7 +41,7 @@ FORM_FIELDS = [
 def main():
 	params = kongaui.execute_form(FORM_FIELDS,
 			"Consolida reparti POS",
-			"Questo script consolida i reparti POS degli articoli di magazzino per evitare disallineamenti tra l'aliquota IVA degli articoli e quella del reparto ed essi abbinato. Alla fine verrà mostrato un log riepilogativo con il risultato di tutte le operazioni simulate.<br/><br/>",
+			"Questo script consolida i reparti POS degli articoli di magazzino per evitare incongruenze tra l'aliquota IVA degli articoli e quella del reparto ed essi abbinato. Alla fine verrà mostrato un log riepilogativo con il risultato di tutte le operazioni eseguite o simulate.<br/><br/>",
 			condition = "code_azienda")
 	if not params:
 		return

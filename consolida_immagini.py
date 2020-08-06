@@ -1,4 +1,4 @@
-# -*- title: Consolida immagini -*-
+# -*- title: Utilità / Consolida immagini -*-
 # -*- requires: Pillow -*-
 # -*- py3k-safe -*-
 # -*- coding: utf-8 -*-

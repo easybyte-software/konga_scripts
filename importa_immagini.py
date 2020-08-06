@@ -1,4 +1,4 @@
-# -*- title: Importazione immagini -*-
+# -*- title: Utilità / Importazione immagini -*-
 # -*- requires: Pillow -*-
 # -*- py3k-safe -*-
 # -*- coding: utf-8 -*-

@@ -2,14 +2,14 @@
 
 Questo repository contiene una serie di script Python di utilità comune per l'utilizzo con EasyByte Konga. Se non altrimenti specificato gli script possono essere eseguiti correttamente sia dal menu *Script* dall'interno di Konga (scelta consigliata) che da linea di comando.
 
+> **Attenzione**: tutti gli script richiedono almeno la versione 1.8.0 di Konga.
+
 
 ## Installazione su Konga
 
-> **Attenzione**: gli script richiedono almeno la versione 1.8.0 di Konga.
-
 Dopo aver scaricato il repository (con *git* o scaricando come file *zip*) lanciare Konga e dal menu *Script* scegliere *Gestisci script…*; nella finestra di gestione degli script, aggiungere la directory dove si è scaricato il repository tra i percorsi di ricerca.
 
-Gli script contenuti in questo repository appariranno a questo punto automaticamente nel menu *Script*.
+Gli script contenuti in questo repository appariranno a questo punto automaticamente nel menu *Script*, all'interno del sotto-menu *Utilità*.
 
 
 ## Installazione da linea di comando
@@ -19,8 +19,6 @@ Assicurarsi di avere installato kongalib e Pillow:
 ```
 pip install kongalib Pillow
 ```
-
-> **Attenzione**: gli script richiedono almeno la versione 1.8.0 di kongalib
 
 Gli script contenuti in questo repository saranno a questo punto pronti per essere eseguiti. 
 
@@ -60,7 +58,7 @@ Alla fine della procedura verrà mostrato un riepilogo sulle immagini generate a
 Controlla eventuali incongruenze tra le aliquote IVA degli articoli di magazzino e le aliquote IVA dei reparti POS abbinati agli stessi articoli. Il consolidamento dei dati e la conseguente risoluzione di queste possibili incongruenze dipende dalle opzioni selezionate all'avvio dello script:
 
 * Codice dell'azienda; identifica l'azienda per cui consolidare gli articoli.
-* Tipo di correzione; specifica come comportarsi in caso di incongruenza dei dati, ossia quale modifica apportare all'articolo: si può scegliere se impostare su di esso il numero di reparto in base all'aliquota IVA abbinata, oppure impostare l'aliquota IVA del reparto POS abbinato.
+* Tipo di correzione; specifica come comportarsi in caso di incongruenza dei dati, ossia quale modifica apportare all'articolo: si può scegliere se impostare su di esso il numero di reparto in base all'aliquota IVA abbinata, oppure impostare l'aliquota IVA in base al reparto POS abbinato.
 * Esegui simulazione; se specificata, questa opzione fa in modo che lo script simuli tutte le sue operazioni senza effettuare alcuna modifica reale al database.
 
 Al termine dell'esecuzione dello script, verrà mostrato un log di riepilogo con le informazioni sulle operazioni effettuate (o simulate).
