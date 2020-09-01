@@ -29,6 +29,12 @@ FORM_FIELDS = [
 		'default': 0,
 	},
 	{
+		'name': 'require_vat',
+		'label': "Riporta errore per articoli senza aliquota IVA",
+		'type': 'bool',
+		'default': True,
+	},
+	{
 		'name': 'simulate',
 		'label': "Esegui simulazione",
 		'tip': "Simula tutte le operazioni ma non apportare modifiche",
@@ -77,7 +83,8 @@ def main():
 						dep = vat_id_to_dep.get(product[2], None)
 						if dep is None:
 							if product[2] is None:
-								log.error('Impossibile assegnare il reparto all\'articolo "%s": l\'articolo non ha aliquota IVA impostata' % product[1])
+								if params['require_vat']:
+									log.error('Impossibile assegnare il reparto all\'articolo "%s": l\'articolo non ha aliquota IVA impostata' % product[1])
 							else:
 								log.error('Impossibile assegnare il reparto all\'articolo "%s": l\'aliquota IVA "%s" non ha un reparto associato' % (product[1], vat_to_code[product[2]]))
 						else:

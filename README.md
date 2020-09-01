@@ -59,6 +59,7 @@ Controlla eventuali incongruenze tra le aliquote IVA degli articoli di magazzino
 
 * Codice dell'azienda; identifica l'azienda per cui consolidare gli articoli.
 * Tipo di correzione; specifica come comportarsi in caso di incongruenza dei dati, ossia quale modifica apportare all'articolo: si può scegliere se impostare su di esso il numero di reparto in base all'aliquota IVA abbinata, oppure impostare l'aliquota IVA in base al reparto POS abbinato.
+* Riporta errore per articoli senza aliquota IVA; se l'opzione è selezionata, l'operazione riporterà un errore nel log per ogni articolo senza aliquota IVA.
 * Esegui simulazione; se specificata, questa opzione fa in modo che lo script simuli tutte le sue operazioni senza effettuare alcuna modifica reale al database.
 
 Al termine dell'esecuzione dello script, verrà mostrato un log di riepilogo con le informazioni sulle operazioni effettuate (o simulate).
