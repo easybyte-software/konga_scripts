@@ -5,29 +5,19 @@ Questo repository contiene una serie di script Python di utilità comune per l'u
 > **Attenzione**: tutti gli script richiedono almeno la versione 1.8.0 di Konga.
 
 
-## Installazione su Konga
+## Installazione
 
-Una volta [scaricato un pacchetto](https://github.com/easybyte-software/konga_scripts/releases) compatibile con la propria versione di Konga, lanciare il programma e dal menu *Script* scegliere *Gestisci script…*; nella finestra di gestione degli script, aggiungere la directory dove si è decompresso il pacchetto tra i percorsi di ricerca.
-
-Gli script contenuti appariranno a questo punto automaticamente nel menu *Script*, all'interno del sotto-menu *Utilità*.
-
-
-## Installazione da linea di comando
-
-Assicurarsi di avere installato kongalib e Pillow:
+[Scaricare un pacchetto](https://github.com/easybyte-software/konga_scripts/releases) compatibile con la propria versione di Konga. Se si vuole eseguire gli script dall'interno di Konga, lanciare il programma e dal menu *Script* scegliere *Gestisci script…*; nella finestra di gestione degli script, aggiungere la directory dove si è decompresso il pacchetto tra i percorsi di ricerca. Gli script contenuti appariranno a questo punto automaticamente nel menu *Script*, all'interno del sotto-menu *Utilità*. Gli script possono essere eseguiti anche da linea di comando, basta assicurarsi di avere installato kongalib e Pillow:
 
 ```
 pip install kongalib Pillow
 ```
 
-Gli script contenuti in questo repository saranno a questo punto pronti per essere eseguiti. 
-
 
 # Script contenuti
 
-- [Script di utilità comune per Konga](#script-di-utilit%c3%a0-comune-per-konga)
-  - [Installazione su Konga](#installazione-su-konga)
-  - [Installazione da linea di comando](#installazione-da-linea-di-comando)
+- [Script di utilità comune per Konga](#script-di-utilità-comune-per-konga)
+  - [Installazione](#installazione)
 - [Script contenuti](#script-contenuti)
   - [Consolida immagini](#consolida-immagini)
   - [Consolida reparti POS](#consolida-reparti-pos)
