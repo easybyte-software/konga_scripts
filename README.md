@@ -7,9 +7,9 @@ Questo repository contiene una serie di script Python di utilità comune per l'u
 
 ## Installazione su Konga
 
-Dopo aver scaricato il repository (con *git* o scaricando come file *zip*) lanciare Konga e dal menu *Script* scegliere *Gestisci script…*; nella finestra di gestione degli script, aggiungere la directory dove si è scaricato il repository tra i percorsi di ricerca.
+Una volta [scaricato un pacchetto](https://github.com/easybyte-software/konga_scripts/releases) compatibile con la propria versione di Konga, lanciare il programma e dal menu *Script* scegliere *Gestisci script…*; nella finestra di gestione degli script, aggiungere la directory dove si è decompresso il pacchetto tra i percorsi di ricerca.
 
-Gli script contenuti in questo repository appariranno a questo punto automaticamente nel menu *Script*, all'interno del sotto-menu *Utilità*.
+Gli script contenuti appariranno a questo punto automaticamente nel menu *Script*, all'interno del sotto-menu *Utilità*.
 
 
 ## Installazione da linea di comando
@@ -39,6 +39,8 @@ Gli script contenuti in questo repository saranno a questo punto pronti per esse
 
 **Sorgente**: `consolida_immagini.py`
 
+**Versione minima di Konga**: 1.9.0
+
 Permette di generare automaticamente le versioni web e miniatura (se mancanti) per tutte le immagini degli articoli contenute in un database. La generazione delle immagini dipende dall'immagine che lo script trova già presente per un articolo, secondo la seguente tabella:
 
 Immagine trovata | Genera immagine web | Genera miniatura
@@ -55,6 +57,8 @@ Alla fine della procedura verrà mostrato un riepilogo sulle immagini generate a
 
 **Sorgente**: `consolida_reparti.py`
 
+**Versione minima di Konga**: 1.8.0
+
 Controlla eventuali incongruenze tra le aliquote IVA degli articoli di magazzino e le aliquote IVA dei reparti POS abbinati agli stessi articoli. Il consolidamento dei dati e la conseguente risoluzione di queste possibili incongruenze dipende dalle opzioni selezionate all'avvio dello script:
 
 * Codice dell'azienda; identifica l'azienda per cui consolidare gli articoli.
@@ -64,11 +68,14 @@ Controlla eventuali incongruenze tra le aliquote IVA degli articoli di magazzino
 
 Al termine dell'esecuzione dello script, verrà mostrato un log di riepilogo con le informazioni sulle operazioni effettuate (o simulate).
 
+
 ---
 
 ## Importazione immagini
 
 **Sorgente**: `importa_immagini.py`
+
+**Versione minima di Konga**: 1.9.0
 
 Permette di importare nuove immagini per gli articoli di un database, a partire dai file contenuti in una cartella specifica. Per funzionare correttamente, la procedura richiede che i nomi dei file corrispondano ad uno tra **codice**,  **codice alternativo**, **barcode** o **codice articolo fornitore** degli articoli già presenti sul database.
 
@@ -99,6 +106,8 @@ Alla fine della procedura verrà mostrato un riepilogo sulle immagini importate 
 ## Riposiziona immagini e allegati
 
 **Sorgente**: `riposiziona_immagini_allegati.py`
+
+> **Attenzione**: questo script è stato deprecato nella versione 1.9.0 di Konga, in quanto la gestione del supporto di archiviazione di immagini e allegati è stata centralizzata all'interno di Konga Server; se si configura il database per salvare immagini e allegati nel filesystem, il server provvederà automaticamente a consolidare e posizionare i file nelle posizioni corrette.
 
 Consolida la struttura delle directory dove sono salvati allegati ed immagini del database. In particolare, questo script assicura che i file siano posizionati in sotto-cartelle gerarchiche, in modo che ogni sotto-cartella abbia al massimo 1000 file al suo interno. Sarà possibile specificare alcune opzioni all'avvio dello script:
 

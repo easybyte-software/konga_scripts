@@ -1,4 +1,5 @@
 # -*- title: Utilità / Riposiziona immagini e allegati -*-
+# -*- konga-version-max: 1.8.2 -*-
 # -*- coding: utf-8 -*-
 # -*- py3k-safe -*-
 

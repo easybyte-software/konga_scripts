@@ -1,4 +1,5 @@
 # -*- title: Utilità / Importazione immagini -*-
+# -*- konga-version-min: 1.9.0-beta -*-
 # -*- requires: Pillow -*-
 # -*- py3k-safe -*-
 # -*- coding: utf-8 -*-
@@ -64,32 +65,56 @@ def main():
 
 	log = kongalib.Log()
 	client = kongautil.connect()
-	updated_arts = []
 	kongaui.open_progress('Importazione immagini in corso...')
+
+	def store(filename, type, data, code, id_art, code_art):
+		try:
+			client.store_binary('EB_Articoli', id_art, type, original_filename=filename, data=data, code_azienda=params['code_azienda'])
+			if data is None:
+				name = {
+					TIPO_NORMALE: 'normale',
+					TIPO_WEB: 'web',
+					TIPO_MINIATURA: 'miniatura'
+				}[type]
+				if fieldname == 'EB_Articoli.Codice':
+					log.info("Cancellata l'immagine %s dall'articolo con codice %s" % (name, code_art))
+				else:
+					log.info("Cancellata l'immagine %s dall'articolo con codice %s e %s %s" % (name, code_art, fieldname_label, code))
+			else:
+				if fieldname == 'EB_Articoli.Codice':
+					log.info("Assegnata l'immagine \"%s\" all'articolo con codice %s" % (filename, code_art))
+				else:
+					log.info("Assegnata l'immagine \"%s\" all'articolo con codice %s e %s %s" % (filename, code_art, fieldname_label, code))
+		except Exception as e:
+			if data:
+				if fieldname == 'EB_Articoli.Codice':
+					log.error("Errore di assegnazione dell'immagine \"%s\" all'articolo con codice %s: %s" % (filename, code_art, str(e)))
+				else:
+					log.error("Errore di assegnazione dell'immagine \"%s\" all'articolo con codice %s e %s %s: %s" % (filename, code_art, fieldname_label, code, str(e)))
+				raise
+
 	client.begin_transaction()
 	try:
-		embed_images, order_images = tuple(client.select_data('EB_Master', ['EB_Master.val_ImagesStorageType', 'EB_Master.val_OrderExternalData'])[0])
-		id_azienda, web_width, web_height = client.select_data('EB_StatoArchivi', ['EB_StatoArchivi.ref_Azienda', 'EB_StatoArchivi.LarghezzaImgWeb', 'EB_StatoArchivi.AltezzaImgWeb'], kongalib.OperandEQ('EB_StatoArchivi.ref_Azienda.Codice', params['code_azienda']))[0]
-		id_tabella = client.select_data('EB_Tabelle', ['EB_Tabelle.id'], kongalib.OperandEQ('EB_Tabelle.Nome', 'EB_Articoli'))[0][0]
-
+		web_width, web_height = client.select_data('EB_StatoArchivi', ['EB_StatoArchivi.LarghezzaImgWeb', 'EB_StatoArchivi.AltezzaImgWeb'], kongalib.OperandEQ('EB_StatoArchivi.ref_Azienda.Codice', params['code_azienda']))[0]
+		
 		files = os.listdir(params['path'])
 		num_files = len(files)
 		for index, name in enumerate(files):
-			filename = original_filename = os.path.join(params['path'], name)
+			filename = os.path.join(params['path'], name)
 			code, original_ext = os.path.splitext(name)
 			if kongaui.is_progress_aborted():
 				break
 			kongaui.set_progress((index * 100.0) / num_files, None, '%s (%d di %d)' % (name, index+1, num_files))
 
 			if code:
-				results = client.select_data('EB_Articoli', ['EB_Articoli.id', 'EB_Articoli.Codice', 'EB_Articoli.ref_Azienda'], kongalib.AND(kongalib.OperandEQ(fieldname, code), kongalib.OR(kongalib.OperandEQ('EB_Articoli.ref_Azienda', id_azienda), kongalib.OperandIsNull('EB_Articoli.ref_Azienda'))))
+				results = client.select_data('EB_Articoli', ['EB_Articoli.id', 'EB_Articoli.Codice'], kongalib.AND(kongalib.OperandEQ(fieldname, code), kongalib.OR(kongalib.OperandEQ('EB_Articoli.ref_Azienda.Codice', params['code_azienda']), kongalib.OperandIsNull('EB_Articoli.ref_Azienda'))))
 				if len(results) > 1:
 					codes = [ result[1] for result in results ]
 					log.warning(u"Il %s %s è associato a più di un articolo! (codici %s) L'immagine non verrà associata a nessun articolo" % (fieldname_label, code, ', '.join(codes)))
 					continue
 
 				if len(results) > 0:
-					id_art, code_art, ref_Azienda = results[0]
+					id_art, code_art = results[0]
 					try:
 						with open(filename, 'rb') as f:
 							data = f.read()
@@ -99,91 +124,47 @@ def main():
 						continue
 					size = bitmap.size
 
-					name = code_art + '_' + str(uuid.uuid5(uuid.uuid1(),'mga'))
-					web_name = code_art + '_web_' + str(uuid.uuid5(uuid.uuid1(),'mga'))
-					thumb_name = code_art + '_tmb_' + str(uuid.uuid5(uuid.uuid1(),'mga')) + '.png'
-
-					client.query("DELETE FROM EB_DatiBinari WHERE ref_Tabella = %d AND Riga = %d AND val_Tipo IN (1,2,3)" % (id_tabella, id_art))
-
-					record = {
-						'EB_DatiBinari.ref_Tabella':		id_tabella,
-						'EB_DatiBinari.Riga':				id_art,
-						'EB_DatiBinari.NomeOriginale':		filename,
-						'EB_DatiBinari.Descrizione':		'',
-						'EB_DatiBinari.NumeroProgressivo':	1,
-						'EB_DatiBinari.ref_Azienda':		ref_Azienda,
-					}
-
-					subdir = code_art[:-3] or '0'
-					external_path = os.path.join(kongautil.get_external_images_path('EB_Articoli', None if (ref_Azienda is None) else params['code_azienda']))
-					if order_images:
-						external_path = os.path.join(external_path, subdir)
-					if not os.path.exists(external_path):
-						os.makedirs(external_path)
-						os.chmod(external_path, 0o2777)
-					to_delete = []
+					if (size[0] > web_width) or (size[1] > web_height):
+						web_filename = None
+						thumb_filename = None
+					else:
+						if (size[0] > 48) or (size[1] > 48):
+							log.warning("L'immagine \"%s\" ha dimensioni inferiori a quelle impostate per le immagini web (%dx%d) pertanto verrà importata come immagine di tipo web (l'articolo non avrà un'immagine di tipo normale)" % (filename, web_width, web_height))
+							web_filename = filename
+							thumb_filename = None
+						else:
+							log.warning("L'immagine \"%s\" ha dimensioni inferiori alla dimensione delle miniature (48x48) pertanto verrà importata come immagine di tipo miniatura (l'articolo non avrà un'immagine di tipo normale nè una di tipo web)" % filename)
+							web_filename = None
+							thumb_filename = filename
 
 					if (size[0] > web_width) or (size[1] > web_height):
-						name += original_ext
-						record['EB_DatiBinari.val_Tipo'] = TIPO_NORMALE
-						record['EB_DatiBinari.NomeAllegato'] = name
-						if embed_images:
-							record['EB_DatiBinari.Contenuto'] = data
-						else:
-							shutil.copy(filename, os.path.join(external_path, name))
-						client.insert_record('EB_DatiBinari', record)
+						normal_data = data
 						temp = bitmap.copy()
 						temp.thumbnail((web_width, web_height))
 						buffer = io.BytesIO()
 						temp.convert('RGBA').save(buffer, 'PNG')
 						data = buffer.getvalue()
-						if not embed_images:
-							with tempfile.NamedTemporaryFile(delete=False) as f:
-								f.write(data)
-								filename = f.name
-						web_name += '.png'
-						move_file = True
+						size = temp.size
 					else:
-						log.warning("L'immagine \"%s\" ha dimensioni inferiori a quelle impostate per le immagini web (%dx%d) pertanto verrà importata come immagine di tipo web (l'articolo non avrà un'immagine di tipo normale)" % (original_filename, web_width, web_height))
-						web_name += original_ext
-						move_file = False
+						normal_data = None
 
-					record['EB_DatiBinari.val_Tipo'] = TIPO_WEB
-					record['EB_DatiBinari.NomeAllegato'] = web_name
-					if embed_images:
-						record['EB_DatiBinari.Contenuto'] = data
+					if (size[0] > 48) or (size[1] > 48):
+						web_data = data
+						bitmap.thumbnail((48, 48))
+						temp = Image.new('RGBA', (48, 48))
+						temp.paste(bitmap, ((48 - bitmap.size[0]) // 2, (48 - bitmap.size[1]) // 2))
+						buffer = io.BytesIO()
+						temp.save(buffer, 'PNG')
+						data = buffer.getvalue()
 					else:
-						if move_file:
-							shutil.copy(filename, os.path.join(external_path, web_name))
-							os.unlink(filename)
-						else:
-							shutil.copy(filename, os.path.join(external_path, web_name))
-					client.insert_record('EB_DatiBinari', record)
+						web_data = None
 
-					bitmap.thumbnail((48, 48))
-					thumb = Image.new('RGBA', (48, 48))
-					thumb.paste(bitmap, ((48 - bitmap.size[0]) // 2, (48 - bitmap.size[1]) // 2))
-					buffer = io.BytesIO()
-					thumb.save(buffer, 'PNG')
-					data = buffer.getvalue()
-					if not embed_images:
-						with tempfile.NamedTemporaryFile(delete=False) as f:
-							f.write(data)
-							filename = f.name
-					record['EB_DatiBinari.val_Tipo'] = TIPO_MINIATURA
-					record['EB_DatiBinari.NomeAllegato'] = thumb_name
-					if embed_images:
-						record['EB_DatiBinari.Contenuto'] = data
-					else:
-						shutil.copy(filename, os.path.join(external_path, thumb_name))
-						os.unlink(filename)
-					client.insert_record('EB_DatiBinari', record)
+					thumb_data = data
 
-					updated_arts.append(id_art)
-					if fieldname == 'EB_Articoli.Codice':
-						log.info("Assegnata l'immagine \"%s\" all'articolo con codice %s" % (original_filename, code_art))
-					else:
-						log.info("Assegnata l'immagine \"%s\" all'articolo con codice %s e %s %s" % (original_filename, code_art, fieldname_label, code))
+					store(filename, TIPO_NORMALE, normal_data, code, id_art, code_art)
+					store(web_filename, TIPO_WEB, web_data, code, id_art, code_art)
+					store(thumb_filename, TIPO_MINIATURA, thumb_data, code, id_art, code_art)
+
 	finally:
 		if kongaui.is_progress_aborted():
 			client.rollback_transaction()
@@ -191,7 +172,6 @@ def main():
 		else:
 			client.commit_transaction()
 			kongaui.close_progress()
-			kongautil.notify_data_changes('EB_Articoli', updated_arts)
 			kongautil.notify_data_changes('EB_Articoli')
 			kongautil.print_log(log, "Esito importazione immagini")
 
