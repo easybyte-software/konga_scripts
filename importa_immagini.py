@@ -67,9 +67,9 @@ def main():
 	client = kongautil.connect()
 	kongaui.open_progress('Importazione immagini in corso...')
 
-	def store(filename, type, data, code, id_art, code_art):
+	def store(filename, type, data, code, id_art, code_art, code_azienda):
 		try:
-			client.store_binary('EB_Articoli', id_art, type, original_filename=filename, data=data, code_azienda=params['code_azienda'])
+			client.store_binary('EB_Articoli', id_art, type, original_filename=filename, data=data, code_azienda=code_azienda)
 			if data is None:
 				name = {
 					TIPO_NORMALE: 'normale',
@@ -107,14 +107,14 @@ def main():
 			kongaui.set_progress((index * 100.0) / num_files, None, '%s (%d di %d)' % (name, index+1, num_files))
 
 			if code:
-				results = client.select_data('EB_Articoli', ['EB_Articoli.id', 'EB_Articoli.Codice'], kongalib.AND(kongalib.OperandEQ(fieldname, code), kongalib.OR(kongalib.OperandEQ('EB_Articoli.ref_Azienda.Codice', params['code_azienda']), kongalib.OperandIsNull('EB_Articoli.ref_Azienda'))))
+				results = client.select_data('EB_Articoli', ['EB_Articoli.id', 'EB_Articoli.Codice', 'EB_Articoli.ref_Azienda.Codice'], kongalib.AND(kongalib.OperandEQ(fieldname, code), kongalib.OR(kongalib.OperandEQ('EB_Articoli.ref_Azienda.Codice', params['code_azienda']), kongalib.OperandIsNull('EB_Articoli.ref_Azienda'))))
 				if len(results) > 1:
 					codes = [ result[1] for result in results ]
 					log.warning(u"Il %s %s è associato a più di un articolo! (codici %s) L'immagine non verrà associata a nessun articolo" % (fieldname_label, code, ', '.join(codes)))
 					continue
 
 				if len(results) > 0:
-					id_art, code_art = results[0]
+					id_art, code_art, code_azienda = results[0]
 					try:
 						with open(filename, 'rb') as f:
 							data = f.read()
@@ -161,9 +161,9 @@ def main():
 
 					thumb_data = data
 
-					store(filename, TIPO_NORMALE, normal_data, code, id_art, code_art)
-					store(web_filename, TIPO_WEB, web_data, code, id_art, code_art)
-					store(thumb_filename, TIPO_MINIATURA, thumb_data, code, id_art, code_art)
+					store(filename, TIPO_NORMALE, normal_data, code, id_art, code_art, code_azienda)
+					store(web_filename, TIPO_WEB, web_data, code, id_art, code_art, code_azienda)
+					store(thumb_filename, TIPO_MINIATURA, thumb_data, code, id_art, code_art, code_azienda)
 
 	finally:
 		if kongaui.is_progress_aborted():
