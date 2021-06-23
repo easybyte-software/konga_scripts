@@ -5,10 +5,12 @@
 # -*- requires: requests -*-
 
 import sys
-import argparse
+import os, os.path
 import shlex
 import datetime
 import io
+import configparser
+import html
 import requests
 
 from xml.etree import ElementTree as ET
@@ -19,33 +21,33 @@ import kongaui
 
 
 
-def strip_html(html):
-	from html.parser import HTMLParser
-	class Stripper(HTMLParser):
-		def __init__(self):
-			HTMLParser.__init__(self)
-			self.skip = 0
-			self.fed = []
-			self.feed(ensure_unicode(html))
-		def handle_starttag(self, tag, attrs):
-			if tag in ( 'head', 'script' ):
-				self.skip += 1
-			elif tag == 'br':
-				self.fed.append('\n')
-		def handle_endtag(self, tag):
-			if tag in ( 'head', 'script' ):
-				self.skip -= 1
-			elif tag == 'p':
-				self.fed.append('\n')
-		def handle_startendtag(self, tag, attrs):
-			if tag == 'br':
-				self.fed.append('\n')
-		def handle_data(self, d):
-			if self.skip == 0:
-				self.fed.append(d)
-		def get_data(self):
-			return ''.join(self.fed)
-	return Stripper().get_data().strip()
+PARAMS = [
+	{
+		'name': 'url',
+		'label': "URL del connettore bindCommerce",
+		'size': 350,
+	},
+	{
+		'name': 'token',
+		'label': "Token di accesso bindCommerce",
+		'type': 'password',
+	},
+	{
+		'name': 'code_azienda',
+		'label': "Codice azienda",
+		'type': 'company_code',
+	},
+	{
+		'name': 'code_titdep',
+		'label': "Codice titolo di deposito",
+		'table': 'EB_TitoliDeposito',
+		'type': 'code',
+	},
+	{
+		'name': 'images_url_prefix',
+		'label': "Prefisso dell'URL delle immagini",
+	},
+]
 
 
 
@@ -56,6 +58,12 @@ def ensure_node(parent, name, attribs=None):
 			node = ET.SubElement(parent, part, attribs or {})
 		parent = node
 	return node
+
+
+
+def escape(text):
+	text = html.escape(text).encode('ascii', 'xmlcharrefreplace')
+	return str(text, 'utf-8')
 
 
 
@@ -85,39 +93,21 @@ def save_xml(source):
 
 
 def main():
-	parser = argparse.ArgumentParser()
-	parser.add_argument('--code-azienda', help="Codice azienda per cui esportare i prodotti")
-	parser.add_argument('--code-titdep', help="Codice titolo di deposito")
-	parser.add_argument('--images-url-prefix', help="Prefisso dell'URL delle immagini")
-	args = shlex.split(' '.join(sys.argv[1:]))
-	options = parser.parse_args(args)
-	if options.code_azienda:
-		params.update({
-			'code_azienda': options.code_azienda,
-			'code_titdep': options.code_titdep,
-			'images_url_prefix': options.images_url_prefix,
-		})
+	config = configparser.RawConfigParser({ param['name']: '' for param in PARAMS })
+	config.add_section('kongautil.connect')
+	config.add_section('kongautil.print_layout')
+	config.add_section('bindCommerce')
+	config.read(os.path.splitext(sys.argv[0])[0] + '.cfg')
+
+	if kongautil.is_batch():
+		params = { param['name']: config.get('bindCommerce', param['name']) for param in PARAMS }
 	else:
-		params = kongaui.execute_form([
-			{
-				'name': 'code_azienda',
-				'label': "Codice azienda",
-				'type': 'company_code',
-			},
-			{
-				'name': 'code_titdep',
-				'label': "Codice titolo di deposito",
-				'table': 'EB_TitoliDeposito',
-				'type': 'code',
-			},
-			{
-				'name': 'images_url_prefix',
-				'label': "Prefisso dell'URL delle immagini",
-			},
-			],
+		for param in PARAMS:
+			param['default'] = config.get('bindCommerce', param['name'])
+		params = kongaui.execute_form(PARAMS,
 			"Esporta prodotti",
 			"Selezionare l'azienda da cui esportare i prodotti su bindCommerce.",
-			condition = "code_azienda")
+			condition = "url and token and code_azienda and code_titdep")
 		if not params:
 			return
 
@@ -171,14 +161,14 @@ def main():
 			prod = ET.SubElement(products, 'Product')
 			for attrib, key in attribs_map.items():
 				if record[key]:
-					ensure_node(prod, attrib).text = record[key]
+					ensure_node(prod, attrib).text = escape(record[key])
 			ensure_node(prod, 'Language').text = 'IT'
 			ensure_node(prod, 'BarcodeKind').text = 'EAN'
 			ensure_node(prod, 'Prices/Price/ListCode').text = 'Public'
 			ensure_node(prod, 'Prices/Price/Currency').text = 'EUR'
 
 			if not prod.find('DescriptionHtml'):
-				ensure_node(prod, 'DescriptionHtml').text = record['EB_Articoli.tra_Descrizione']
+				ensure_node(prod, 'DescriptionHtml').text = escape(record['EB_Articoli.tra_Descrizione'])
 			if prod.find('Dimensions/Weight'):
 				ensure_node(prod, 'Dimensions/WeightUom').text = 'Kg'
 			if prod.find('Dimensions/Length') or prod.find('Dimensions/Width') or prod.find('Dimensions/Height'):
@@ -239,8 +229,15 @@ def main():
 						url += '/'
 					ET.SubElement(pic, 'URL').text = url + image
 
-		xml = save_xml(root)
-		print(str(xml, 'utf-8'))
+		xml = str(save_xml(root), 'utf-8')
+		# print(xml)
+		response = requests.post(params['url'], headers={
+			'cache-control': 'no-cache',
+			'content-type': 'text/xml',
+			'token': params['token'],
+		}, data=xml)
+		response.raise_for_status()
+
 	finally:
 		client.rollback_transaction()
 		kongaui.close_progress()
