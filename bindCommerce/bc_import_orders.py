@@ -6,6 +6,10 @@
 
 # Si assume che siano stati configurati i primi 4 riferimenti aggiuntivi di Ordini Clienti come segue:
 #
+# - EB_OrdiniClienti.RifAggiuntivo1: numero d'ordine interno a bindCommerce
+# - EB_OrdiniClienti.RifAggiuntivo2: numero d'ordine del canale di vendita
+# - EB_OrdiniClienti.RifAggiuntivo3: stato dell'ordine sul canale di vendita
+# - EB_OrdiniClienti.RifAggiuntivo4: note inserite dal venditore
 #
 
 
@@ -238,7 +242,8 @@ def main():
 
 	log = kongalib.Log()
 	client = kongautil.connect(config=config_file)
-	kongaui.open_progress('Importazione ordini in corso...')
+	if not kongautil.is_batch():
+		kongaui.open_progress('Importazione ordini in corso...')
 	client.begin_transaction()
 	datadict = client.get_data_dictionary()
 	val_nations = {}
@@ -325,7 +330,8 @@ def main():
 	else:
 		client.commit_transaction()
 	finally:
-		kongaui.close_progress()
+		if not kongautil.is_batch():
+			kongaui.close_progress()
 
 
 
