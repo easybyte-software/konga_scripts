@@ -93,11 +93,13 @@ def save_xml(source):
 
 
 def main():
+	config_file = os.path.splitext(sys.argv[0])[0] + '.cfg'
+
 	config = configparser.RawConfigParser({ param['name']: '' for param in PARAMS })
 	config.add_section('kongautil.connect')
 	config.add_section('kongautil.print_layout')
 	config.add_section('bindCommerce')
-	config.read(os.path.splitext(sys.argv[0])[0] + '.cfg')
+	config.read(config_file)
 
 	if kongautil.is_batch():
 		params = { param['name']: config.get('bindCommerce', param['name']) for param in PARAMS }
@@ -106,13 +108,12 @@ def main():
 			param['default'] = config.get('bindCommerce', param['name'])
 		params = kongaui.execute_form(PARAMS,
 			"Esporta prodotti",
-			"Selezionare l'azienda da cui esportare i prodotti su bindCommerce.",
 			condition = "url and token and code_azienda and code_titdep")
 		if not params:
 			return
 
 	log = kongalib.Log()
-	client = kongautil.connect()
+	client = kongautil.connect(config=config_file)
 	kongaui.open_progress('Esportazione prodotti in corso...')
 	client.begin_transaction()
 	datadict = client.get_data_dictionary()
