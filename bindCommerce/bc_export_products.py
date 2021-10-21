@@ -11,6 +11,9 @@ import datetime
 import io
 import configparser
 import html
+import urllib
+import urllib.parse
+import ftplib
 import requests
 
 from xml.etree import ElementTree as ET
@@ -46,6 +49,26 @@ PARAMS = [
 	{
 		'name': 'images_url_prefix',
 		'label': "Prefisso dell'URL delle immagini",
+		'size': 350,
+	},
+	{
+		'name': 'images_ftp_host',
+		'label': "Host ftp per l'upload delle immagini",
+		'size': 350,
+	},
+	{
+		'name': 'images_ftp_username',
+		'label': "Nome utente ftp per l'upload delle immagini",
+	},
+	{
+		'name': 'images_ftp_password',
+		'label': "Password ftp per l'upload delle immagini",
+		'type': 'password',
+	},
+	{
+		'name': 'images_ftp_root',
+		'label': "Percorso sull'ftp dove eseguire l'upload delle immagini",
+		'size': 350,
 	},
 ]
 
@@ -62,6 +85,8 @@ def ensure_node(parent, name, attribs=None):
 
 
 def escape(text):
+	if not isinstance(text, str):
+		text = str(text)
 	text = html.escape(text).encode('ascii', 'xmlcharrefreplace')
 	return str(text, 'utf-8')
 
@@ -112,6 +137,13 @@ def main():
 		if not params:
 			return
 
+	if params['images_ftp_host']:
+		ftp = ftplib.FTP_TLS(params['images_ftp_host'])
+		ftp.login(params['images_ftp_username'], params['images_ftp_password'])
+		ftp.prot_p()
+		ftp.cwd(params['images_ftp_root'] or '/')
+	else:
+		ftp = None
 	log = kongalib.Log()
 	client = kongautil.connect(config=config_file)
 	kongaui.open_progress('Esportazione prodotti in corso...')
@@ -153,7 +185,10 @@ def main():
 		root = ET.Element('bindCommerceProducts', { 'Mode': 'full' })
 		products = ET.SubElement(root, 'Products')
 		for index, record_id in enumerate(ids):
+			record_id = record_id[0]
 			kongaui.set_progress((index * 100.0) / len(ids), None, 'Articolo %d di %d' % (index+1, len(ids)))
+			if kongaui.is_progress_aborted():
+				return
 			record = client.get_record('EB_Articoli', id=record_id, field_names=[
 				'EB_Articoli.ref_Produttore.RagioneSociale',
 				'EB_Articoli.ref_Fornitore.RagioneSociale',
@@ -168,11 +203,11 @@ def main():
 			ensure_node(prod, 'Prices/Price/ListCode').text = 'Public'
 			ensure_node(prod, 'Prices/Price/Currency').text = 'EUR'
 
-			if not prod.find('DescriptionHtml'):
+			if prod.find('DescriptionHtml') is None:
 				ensure_node(prod, 'DescriptionHtml').text = escape(record['EB_Articoli.tra_Descrizione'])
-			if prod.find('Dimensions/Weight'):
+			if prod.find('Dimensions/Weight') is not None:
 				ensure_node(prod, 'Dimensions/WeightUom').text = 'Kg'
-			if prod.find('Dimensions/Length') or prod.find('Dimensions/Width') or prod.find('Dimensions/Height'):
+			if (prod.find('Dimensions/Length') is not None) or (prod.find('Dimensions/Width') is not None) or (prod.find('Dimensions/Height') is not None):
 				ensure_node(prod, 'Dimensions/LwhUom').text = 'cm'
 			categories = []
 			id_cat = record['EB_Articoli.ref_CategoriaMerceologica']
@@ -220,15 +255,24 @@ def main():
 			images = []
 			for binary in binaries:
 				if binary[0] == binary_type.IMMAGINE_WEB:
-					images.append(binary[1])
+					images.append((binary[1], binary[2]))
 			if images:
 				pictures = ensure_node(prod, 'Pictures')
-				for image in images:
+				for image, filename in images:
 					pic = ET.SubElement(pictures, 'Picture')
 					url = params['images_url_prefix']
 					if not url.endswith('/'):
 						url += '/'
-					ET.SubElement(pic, 'URL').text = url + image
+					ext = os.path.splitext(filename)[-1]
+					if '.' in image:
+						filename = os.path.splitext(image)[0]
+					else:
+						filename = image
+					filename = urllib.parse.quote(os.path.basename(filename)) + ext
+					ET.SubElement(pic, 'URL').text = url + filename
+					if ftp is not None:
+						data = client.fetch_binary('EB_Articoli', record_id, binary_type.IMMAGINE_WEB, image)[0]
+						ftp.storbinary('STOR %s' % filename, io.BytesIO(data))
 
 		xml = str(save_xml(root), 'utf-8')
 		# print(xml)
