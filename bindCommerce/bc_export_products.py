@@ -47,6 +47,18 @@ PARAMS = [
 		'type': 'code',
 	},
 	{
+		'name': 'code_from',
+		'label': "Da codice",
+		'table': 'EB_Articoli',
+		'type': 'code',
+	},
+	{
+		'name': 'code_to',
+		'label': "A codice",
+		'table': 'EB_Articoli',
+		'type': 'code',
+	},
+	{
 		'name': 'images_url_prefix',
 		'label': "Prefisso dell'URL delle immagini",
 		'size': 350,
@@ -163,10 +175,15 @@ def main():
 			raise RuntimeError("Titolo di deposito non trovato per l'azienda specificata")
 		id_titdep, id_mag = result[0]
 
-		ids = client.select_data('EB_Articoli', [ 'EB_Articoli.id' ], kongalib.AND(
-				kongalib.OR(kongalib.OperandIsNull('EB_Articoli.ref_Azienda'), kongalib.OperandEQ('EB_Articoli.ref_Azienda.Codice', params['code_azienda'])),
-				kongalib.OperandEQ('EB_Articoli.val_Tipo', prod_type.STANDARD)
-		))
+		w_ex = [
+			kongalib.OR(kongalib.OperandIsNull('EB_Articoli.ref_Azienda'), kongalib.OperandEQ('EB_Articoli.ref_Azienda.Codice', params['code_azienda'])),
+			kongalib.OperandEQ('EB_Articoli.val_Tipo', prod_type.STANDARD),
+		]
+		if params['code_from']:
+			w_ex.append(kongalib.OperandGE('EB_Articoli.Codice', params['code_from']))
+		if params['code_to']:
+			w_ex.append(kongalib.OperandLE('EB_Articoli.Codice', params['code_to']))
+		ids = client.select_data('EB_Articoli', [ 'EB_Articoli.id' ], kongalib.AND(*w_ex), 'EB_Articoli.Codice')
 		attribs_map = {
 			'Code':						'EB_Articoli.Codice',
 			'Barcode':					'EB_Articoli.BarCode',
@@ -235,7 +252,7 @@ def main():
 				id_tag = id_tag[0]
 				tag = []
 				while id_tag:
-					tag_desc, tag_id = client.select_data('EB_Tags', ['EB_Tags.Descrizione', 'EB_Tags.ref_TagPadre' ], OperandEQ('EB_Tags.id', tag_id))[0]
+					tag_desc, id_tag = client.select_data('EB_Tags', ['EB_Tags.Descrizione', 'EB_Tags.ref_TagPadre' ], kongalib.OperandEQ('EB_Tags.id', id_tag))[0]
 					tag.insert(0, tag_desc)
 				node = ET.SubElement(attributes, 'Attribute', { 'lang': 'it' })
 				if len(tag) > 1:
