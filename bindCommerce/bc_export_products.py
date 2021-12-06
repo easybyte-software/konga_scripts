@@ -59,6 +59,11 @@ PARAMS = [
 		'type': 'code',
 	},
 	{
+		'name': 'ecomm_only',
+		'label': "Solo articoli con gestione e-business",
+		'type': 'bool',
+	},
+	{
 		'name': 'images_url_prefix',
 		'label': "Prefisso dell'URL delle immagini",
 		'size': 350,
@@ -163,6 +168,7 @@ def main():
 	datadict = client.get_data_dictionary()
 	prod_type = datadict.get_choice('TipologieArticoli')
 	binary_type = datadict.get_choice('Resources')
+	yesno_type = datadict.get_choice('YesNo')
 	try:
 		today = datetime.datetime.now().date().isoformat()
 		result = client.select_data('EB_Esercizi', ['EB_Esercizi.id'], kongalib.AND(kongalib.OperandLE('EB_Esercizi.DataInizio', today), kongalib.OperandGE('EB_Esercizi.DataFine', today)), kongalib.OperandEQ('EB_Esercizi.ref_Azienda.Codice', params['code_azienda']))
@@ -183,6 +189,9 @@ def main():
 			w_ex.append(kongalib.OperandGE('EB_Articoli.Codice', params['code_from']))
 		if params['code_to']:
 			w_ex.append(kongalib.OperandLE('EB_Articoli.Codice', params['code_to']))
+		if params['ecomm_only']:
+			w_ex.append(kongalib.OperandEQ('EB_Articoli.val_GestioneWeb', yesno_type.YES))
+
 		ids = client.select_data('EB_Articoli', [ 'EB_Articoli.id' ], kongalib.AND(*w_ex), 'EB_Articoli.Codice')
 		attribs_map = {
 			'Code':						'EB_Articoli.Codice',
