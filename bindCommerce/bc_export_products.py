@@ -62,6 +62,14 @@ PARAMS = [
 		'name': 'ecomm_only',
 		'label': "Solo articoli con gestione e-business",
 		'type': 'bool',
+		'default': True,
+	},
+	{
+		'name': 'last_days',
+		'label': "Solo articoli modificati",
+		'type': 'choice',
+		'items': [ 'no (invia tutti)', 'negli ultimi 3 giorni', 'negli ultimi 7 giorni', 'negli ultimi 15 giorni' ],
+		'default': 0,
 	},
 	{
 		'name': 'images_url_prefix',
@@ -137,17 +145,20 @@ def save_xml(source):
 def main():
 	config_file = os.path.splitext(sys.argv[0])[0] + '.cfg'
 
-	config = configparser.RawConfigParser({ param['name']: '' for param in PARAMS })
+	config = configparser.RawConfigParser({})
 	config.add_section('kongautil.connect')
 	config.add_section('kongautil.print_layout')
 	config.add_section('bindCommerce')
 	config.read(config_file)
 
 	if kongautil.is_batch():
-		params = { param['name']: config.get('bindCommerce', param['name']) for param in PARAMS }
+		params = { param['name']: config.get('bindCommerce', param['name'], fallback=param.get('default', '')) for param in PARAMS }
+		params['last_days'] = { '3': 1, '7': 2, '15': 3 }.get(params['last_days'], 0)
 	else:
 		for param in PARAMS:
-			param['default'] = config.get('bindCommerce', param['name'])
+			param['default'] = config.get('bindCommerce', param['name'], fallback=param.get('default', ''))
+			if param['name'] == 'last_days':
+				param['default'] = { '3': 1, '7': 2, '15': 3 }.get(param['default'], 0)
 		params = kongaui.execute_form(PARAMS,
 			"Esporta prodotti",
 			condition = "url and token and code_azienda and code_titdep")
@@ -191,6 +202,9 @@ def main():
 			w_ex.append(kongalib.OperandLE('EB_Articoli.Codice', params['code_to']))
 		if params['ecomm_only']:
 			w_ex.append(kongalib.OperandEQ('EB_Articoli.val_GestioneWeb', yesno_type.YES))
+		if params['last_days']:
+			limit = datetime.datetime.combine(datetime.date.today(), datetime.time(23, 59, 59, 9999)) - datetime.timedelta(days={ 1: 3, 2: 7, 3: 15 }[params['last_days']])
+			w_ex.append(kongalib.OperandGE('EB_Articoli.TSModifica', limit.isoformat(' ')))
 
 		ids = client.select_data('EB_Articoli', [ 'EB_Articoli.id' ], kongalib.AND(*w_ex), 'EB_Articoli.Codice')
 		attribs_map = {
