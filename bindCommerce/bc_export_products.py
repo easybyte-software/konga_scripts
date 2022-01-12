@@ -6,7 +6,10 @@
 
 import sys
 import os, os.path
+import argparse
 import shlex
+import logging
+import logging.handlers
 import datetime
 import io
 import configparser
@@ -23,6 +26,7 @@ import kongautil
 import kongaui
 
 
+BASE_NAME = os.path.splitext(sys.argv[0])[0]
 
 PARAMS = [
 	{
@@ -142,8 +146,53 @@ def save_xml(source):
 
 
 
+def setup_logging(logfile):
+	logger = logging.getLogger()
+	formatter = logging.Formatter("%(asctime)s %(levelname)-8s %(message)s")
+	try:
+		handler = logging.handlers.RotatingFileHandler(logfile, maxBytes=1000000, backupCount=10)
+	except:
+		print("Unable to save log files in %s, falling back to stdout" % logfile)
+		handler = logging.StreamHandler()
+	handler.setLevel(logging.DEBUG)
+	handler.setFormatter(formatter)
+	logger.addHandler(handler)
+	logger.setLevel(logging.INFO)
+
+	class Handler(logging.StreamHandler):
+		def __init__(self, formatter):
+			super().__init__(logging.DEBUG)
+			self._log = kongalib.Log()
+			self.setFormatter(formatter)
+		def get_log(self):
+			return self._log
+		def emit(self, record):
+			msg = self.format(record)
+			func = {
+				logging.WARNING: self._log.warning,
+				logging.ERROR: self._log.error,
+				logging.CRITICAL: self._log.error,
+			}.get(record.levelno, self._log.info)
+			func(msg)
+	handler = Handler(formatter)
+	logger.addHandler(handler)
+
+	return handler.get_log()
+
+
+
 def main():
-	config_file = os.path.splitext(sys.argv[0])[0] + '.cfg'
+	parser = argparse.ArgumentParser(prog=os.path.basename(sys.argv[0]))
+	parser.add_argument('--dry-run', action='store_true', help="Tenta le operazioni desiderate ma non applica alcuna modifica")
+	parser.add_argument('-q', '--quiet', action='store_true', help='Non mostrare alcun output a video')
+
+	args = shlex.split(' '.join(sys.argv[1:]))
+	options = parser.parse_args(args)
+
+	logfile = BASE_NAME + '.log'
+	log = setup_logging(logfile)
+
+	config_file = BASE_NAME + '.cfg'
 
 	config = configparser.RawConfigParser({})
 	config.add_section('kongautil.connect')
@@ -172,9 +221,10 @@ def main():
 		ftp.cwd(params['images_ftp_root'] or '/')
 	else:
 		ftp = None
-	log = kongalib.Log()
 	client = kongautil.connect(config=config_file)
-	kongaui.open_progress('Esportazione prodotti in corso...')
+	logging.info('Inizio esportazione prodotti')
+	if not options.quiet:
+		kongaui.open_progress('Esportazione prodotti in corso...')
 	client.begin_transaction()
 	datadict = client.get_data_dictionary()
 	prod_type = datadict.get_choice('TipologieArticoli')
@@ -226,14 +276,16 @@ def main():
 		products = ET.SubElement(root, 'Products')
 		for index, record_id in enumerate(ids):
 			record_id = record_id[0]
-			kongaui.set_progress((index * 100.0) / len(ids), None, 'Articolo %d di %d' % (index+1, len(ids)))
-			if kongaui.is_progress_aborted():
-				return
+			if not options.quiet:
+				kongaui.set_progress((index * 100.0) / len(ids), None, 'Articolo %d di %d' % (index+1, len(ids)))
+				if kongaui.is_progress_aborted():
+					return
 			record = client.get_record('EB_Articoli', id=record_id, field_names=[
 				'EB_Articoli.ref_Produttore.RagioneSociale',
 				'EB_Articoli.ref_Fornitore.RagioneSociale',
 				'EB_Articoli.ref_AliquotaIVA.PercentualeIVA',
 			])
+			logging.info('Esporto articolo %s' % record['EB_Articoli.Codice'])
 			prod = ET.SubElement(products, 'Product')
 			for attrib, key in attribs_map.items():
 				if record[key]:
@@ -312,21 +364,35 @@ def main():
 					ET.SubElement(pic, 'URL').text = url + filename
 					if ftp is not None:
 						data = client.fetch_binary('EB_Articoli', record_id, binary_type.IMMAGINE_WEB, image)[0]
-						ftp.storbinary('STOR %s' % filename, io.BytesIO(data))
+						logging.info("Pubblico l'immagine '%s' su FTP" % filename)
+						if not options.dry_run:
+							try:
+								ftp.storbinary('STOR %s' % filename, io.BytesIO(data))
+							except Exception as e:
+								logging.error('Errore di pubblicazione su FTP: %s' % str(e))
 
 		xml = str(save_xml(root), 'utf-8')
 		# print(xml)
-		response = requests.post(params['url'], headers={
-			'cache-control': 'no-cache',
-			'content-type': 'text/xml',
-			'token': params['token'],
-		}, data=xml)
-		response.raise_for_status()
+		if not options.dry_run:
+			logging.info('Pubblicazione degli articoli aggiornati su bindCommerce')
+			response = requests.post(params['url'], headers={
+				'cache-control': 'no-cache',
+				'content-type': 'text/xml',
+				'token': params['token'],
+			}, data=xml)
+			try:
+				response.raise_for_status()
+			except Exception as e:
+				logging.error('Errore di pubblicazione articoli su bindCommerce: %s' % str(e))
 
 	finally:
 		client.rollback_transaction()
-		kongaui.close_progress()
-
+		if not options.quiet:
+			kongaui.close_progress()
+		logging.info('Termine esportazione prodotti')
+	
+	if not options.quiet:
+		kongautil.print_log(log)
 
 
 if __name__ == '__main__':

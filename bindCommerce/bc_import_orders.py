@@ -233,7 +233,7 @@ def main():
 		try:
 			perc = config.get('bindCommerce', 'vat_perc_%d' % index)
 			code = config.get('bindCommerce', 'vat_code_%d' % index)
-			if (not name) or (not code):
+			if (not perc) or (not code):
 				continue
 		except:
 			break
