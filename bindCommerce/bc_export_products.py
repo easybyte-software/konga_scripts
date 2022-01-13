@@ -146,7 +146,7 @@ def save_xml(source):
 
 
 
-def setup_logging(logfile):
+def setup_logging(logfile, debug):
 	logger = logging.getLogger()
 	formatter = logging.Formatter("%(asctime)s %(levelname)-8s %(message)s")
 	try:
@@ -157,7 +157,6 @@ def setup_logging(logfile):
 	handler.setLevel(logging.DEBUG)
 	handler.setFormatter(formatter)
 	logger.addHandler(handler)
-	logger.setLevel(logging.INFO)
 
 	class Handler(logging.StreamHandler):
 		def __init__(self, formatter):
@@ -167,15 +166,17 @@ def setup_logging(logfile):
 		def get_log(self):
 			return self._log
 		def emit(self, record):
-			msg = self.format(record)
+			self.format(record)
 			func = {
 				logging.WARNING: self._log.warning,
 				logging.ERROR: self._log.error,
 				logging.CRITICAL: self._log.error,
 			}.get(record.levelno, self._log.info)
-			func(msg)
+			func(record.message)
 	handler = Handler(formatter)
 	logger.addHandler(handler)
+
+	logger.setLevel(logging.DEBUG if debug else logging.INFO)
 
 	return handler.get_log()
 
@@ -184,13 +185,14 @@ def setup_logging(logfile):
 def main():
 	parser = argparse.ArgumentParser(prog=os.path.basename(sys.argv[0]))
 	parser.add_argument('--dry-run', action='store_true', help="Tenta le operazioni desiderate ma non applica alcuna modifica")
+	parser.add_argument('--debug', action='store_true', help='Attiva modalità di debug')
 	parser.add_argument('-q', '--quiet', action='store_true', help='Non mostrare alcun output a video')
 
 	args = shlex.split(' '.join(sys.argv[1:]))
 	options = parser.parse_args(args)
 
 	logfile = BASE_NAME + '.log'
-	log = setup_logging(logfile)
+	log = setup_logging(logfile, options.debug)
 
 	config_file = BASE_NAME + '.cfg'
 
@@ -392,7 +394,7 @@ def main():
 		logging.info('Termine esportazione prodotti')
 	
 	if not options.quiet:
-		kongautil.print_log(log)
+		kongautil.print_log(log, 'Esito esportazione')
 
 
 if __name__ == '__main__':

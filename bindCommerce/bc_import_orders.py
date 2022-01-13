@@ -16,14 +16,17 @@
 
 import sys
 import os, os.path
+import argparse
 import shlex
+import logging
+import logging.handlers
 import datetime
 import io
 import configparser
 import html
 import requests
 
-from pprint import pprint
+from pprint import pformat, pprint
 from xml.etree import ElementTree as ET
 
 import kongalib
@@ -31,6 +34,7 @@ import kongautil
 import kongaui
 
 
+BASE_NAME = os.path.splitext(sys.argv[0])[0]
 
 PARAMS = [
 	{
@@ -102,7 +106,54 @@ def get_product_info(client, product_code):
 
 
 
+def setup_logging(logfile, debug):
+	logger = logging.getLogger()
+	formatter = logging.Formatter("%(asctime)s %(levelname)-8s %(message)s")
+	try:
+		handler = logging.handlers.RotatingFileHandler(logfile, maxBytes=1000000, backupCount=10)
+	except:
+		print("Unable to save log files in %s, falling back to stdout" % logfile)
+		handler = logging.StreamHandler()
+	handler.setLevel(logging.DEBUG)
+	handler.setFormatter(formatter)
+	logger.addHandler(handler)
+
+	class Handler(logging.StreamHandler):
+		def __init__(self, formatter):
+			super().__init__(logging.DEBUG)
+			self._log = kongalib.Log()
+			self.setFormatter(formatter)
+		def get_log(self):
+			return self._log
+		def emit(self, record):
+			self.format(record)
+			func = {
+				logging.WARNING: self._log.warning,
+				logging.ERROR: self._log.error,
+				logging.CRITICAL: self._log.error,
+			}.get(record.levelno, self._log.info)
+			func(record.message)
+	handler = Handler(formatter)
+	logger.addHandler(handler)
+
+	logger.setLevel(logging.DEBUG if debug else logging.INFO)
+
+	return handler.get_log()
+
+
+
 def main():
+	parser = argparse.ArgumentParser(prog=os.path.basename(sys.argv[0]))
+	parser.add_argument('--dry-run', action='store_true', help="Tenta le operazioni desiderate ma non applica alcuna modifica")
+	parser.add_argument('--debug', action='store_true', help='Attiva modalità di debug')
+	parser.add_argument('-q', '--quiet', action='store_true', help='Non mostrare alcun output a video')
+
+	args = shlex.split(' '.join(sys.argv[1:]))
+	options = parser.parse_args(args)
+
+	logfile = BASE_NAME + '.log'
+	log = setup_logging(logfile, options.debug)
+
 	payment_code = {}
 	vat_code = {}
 
@@ -199,7 +250,7 @@ def main():
 	}
 
 
-	config_file = os.path.splitext(sys.argv[0])[0] + '.cfg'
+	config_file = BASE_NAME + '.cfg'
 
 	config = configparser.RawConfigParser({ param['name']: '' for param in PARAMS })
 	config.add_section('kongautil.connect')
@@ -240,9 +291,9 @@ def main():
 		else:
 			vat_code[kongalib.Decimal(perc)] = code
 
-	log = kongalib.Log()
 	client = kongautil.connect(config=config_file)
-	if not kongautil.is_batch():
+	logging.info('Inizio importazione ordini')
+	if not options.quiet:
 		kongaui.open_progress('Importazione ordini in corso...')
 	client.begin_transaction()
 	datadict = client.get_data_dictionary()
@@ -251,6 +302,7 @@ def main():
 	for key in nations.keys():
 		val_nations[key[:2]] = getattr(nations, key)
 	dest_types = datadict.get_choice('TipiIndirizzo')
+	product_types = datadict.get_choice('TipologieArticoli')
 	code_azienda = params['code_azienda']
 	try:
 		result = client.select_data('EB_TitoliDeposito', ['EB_TitoliDeposito.id', 'EB_TitoliDeposito.ref_Magazzino'], kongalib.AND(kongalib.OperandEQ('EB_TitoliDeposito.Codice', params['code_titdep']), kongalib.OperandEQ('EB_TitoliDeposito.ref_Magazzino.ref_Azienda.Codice', code_azienda)))
@@ -263,7 +315,11 @@ def main():
 			'cache-control': 'no-cache',
 			'token': params['token'],
 		})
-		response.raise_for_status()
+		try:
+			response.raise_for_status()
+		except Exception as e:
+			logging.error('Errore di richiesta ordini da bindCommerce: %s' % str(e))
+			raise
 		if response.text:
 			file = io.BytesIO(response.text.encode('utf-8'))
 			root = ET.ElementTree().parse(file)
@@ -274,64 +330,143 @@ def main():
 			# print(ET.tostring(root, encoding='unicode'))
 
 			for document in root.findall('Document'):
-				customer = prepare_record(document, customer_map, code_azienda)
-				dest = prepare_record(document, dest_map, code_azienda)
-				order = prepare_record(document, order_map, code_azienda)
+				commit = False
+				try:
+					client.begin_transaction()
+					customer = prepare_record(document, customer_map, code_azienda)
+					dest = prepare_record(document, dest_map, code_azienda)
+					try:
+						order = prepare_record(document, order_map, code_azienda)
+					except Exception as e:
+						logging.error("Errore nella preparazione dei dati dell'ordine: %s: %s" % (type(e).__name__, str(e)))
+						continue
 
-				result = client.select_data('EB_ClientiFornitori', ['EB_ClientiFornitori.Codice'], kongalib.OperandEQ('EB_ClientiFornitori.CodiceAlternativo', customer['EB_ClientiFornitori.CodiceAlternativo']))
-				if result:
-					customer_code = result[0][0]
-				else:
-					customer['EB_ClientiFornitori.Codice'] = customer['EB_ClientiFornitori.CodiceAlternativo']
-					customer['EB_ClientiFornitori.Tipo'] = 1
-					customer_code = client.insert_record('EB_ClientiFornitori', customer, code_azienda)[1]
-				order['EB_OrdiniClienti.code_Cliente'] = customer_code
+					result = client.select_data('EB_ClientiFornitori', ['EB_ClientiFornitori.Codice'], kongalib.OperandEQ('EB_ClientiFornitori.CodiceAlternativo', customer['EB_ClientiFornitori.CodiceAlternativo']))
+					if result:
+						customer_code = result[0][0]
+					else:
+						customer['EB_ClientiFornitori.Codice'] = customer['EB_ClientiFornitori.CodiceAlternativo']
+						customer['EB_ClientiFornitori.Tipo'] = 1
+						try:
+							customer_code = client.insert_record('EB_ClientiFornitori', customer, code_azienda)[1]
+						except Exception as e:
+							logging.error("Errore nell'inserimento nuovo cliente da ordine: %s" % str(e))
+							logging.debug("Dati cliente: %s" % pformat(customer))
+							continue
+					order['EB_OrdiniClienti.code_Cliente'] = customer_code
 
-				result = client.select_data('EB_Indirizzi', ['EB_Indirizzi.Codice'], kongalib.AND(kongalib.OperandEQ('EB_Indirizzi.RagioneSociale', dest['EB_Indirizzi.RagioneSociale']), kongalib.OperandEQ('EB_Indirizzi.Indirizzo', dest['EB_Indirizzi.Indirizzo'])))
-				if result:
-					dest_code = result[0][0]
-				else:
-					dest['EB_Indirizzi.code_ClienteFornitore'] = customer_code
-					dest['EB_Indirizzi.val_TipoIndirizzo'] = dest_types.DEST_MERCE
-					dest_code = client.insert_record('EB_Indirizzi', dest, code_azienda)[1]
-				order['EB_OrdiniClienti.code_Indirizzo'] = dest_code
+					result = client.select_data('EB_Indirizzi', ['EB_Indirizzi.Codice'], kongalib.AND(kongalib.OperandEQ('EB_Indirizzi.RagioneSociale', dest['EB_Indirizzi.RagioneSociale']), kongalib.OperandEQ('EB_Indirizzi.Indirizzo', dest['EB_Indirizzi.Indirizzo'])))
+					if result:
+						dest_code = result[0][0]
+					else:
+						dest['EB_Indirizzi.code_ClienteFornitore'] = customer_code
+						dest['EB_Indirizzi.val_TipoIndirizzo'] = dest_types.DEST_MERCE
+						try:
+							dest_code = client.insert_record('EB_Indirizzi', dest, code_azienda)[1]
+						except Exception as e:
+							logging.error("Errore nell'inserimento nuovo indirizzo da ordine: %s" % str(e))
+							logging.debug("Dati indirizzo: %s" % pformat(dest))
+							continue
+					order['EB_OrdiniClienti.code_Indirizzo'] = dest_code
 
-				order['@rows'] = []
-				for row in document.findall('Rows/Row'):
-					rowdata = prepare_record(row, row_map)
-					rowdata['EB_RigheOrdiniClienti.code_RigheUnitaMisura'] = get_product_info(client, rowdata['EB_RigheOrdiniClienti.code_Articolo'])[0]
-					order['@rows'].append(rowdata)
-				order['EB_OrdiniClienti.code_Tipologia'] = params['code_tipo_doc']
-				order['EB_OrdiniClienti.ref_CausaleMagazzino'] = id_caus_mag
-				order['EB_OrdiniClienti.ref_TitDepUscita'] = id_titdep
+					order['@rows'] = []
+					for row in document.findall('Rows/Row'):
+						row_code = (row.find('Code').text or '').strip()
+						if not row_code:
+							row_barcode = (row.find('Barcode').text or '').strip()
+							if row_barcode:
+								result = client.select_data('EB_Articoli', ['EB_Articoli.Codice'], kongalib.AND(kongalib.OperandEQ('EB_Articoli.BarCode', row_barcode), kongalib.OperandNE('EB_Articoli.val_Tipo', product_types.DESCRITTIVO)))
+								if result:
+									row_code = result[0][0]
+									row.find('Code').text = row_code
+						if not row_code:
+							row_desc = (row.find('Description').text or '').strip()
+							if row_desc:
+								result = client.select_data('EB_Articoli', ['EB_Articoli.Codice'], kongalib.AND(kongalib.OperandEQ('EB_Articoli.tra_Descrizione', row_desc), kongalib.OperandNE('EB_Articoli.val_Tipo', product_types.DESCRITTIVO)))
+								if len(result) == 1:
+									row_code = result[0][0]
+									row.find('Code').text = row_code
+						try:
+							rowdata = prepare_record(row, row_map)
+						except Exception as e:
+							logging.error("Errore nella preparazione delle righe dell'ordine: %s: %s" % (type(e).__name__, str(e)))
+							continue
+						rowdata['EB_RigheOrdiniClienti.code_RigheUnitaMisura'] = get_product_info(client, rowdata['EB_RigheOrdiniClienti.code_Articolo'])[0]
+						order['@rows'].append(rowdata)
+					order['EB_OrdiniClienti.code_Tipologia'] = params['code_tipo_doc']
+					order['EB_OrdiniClienti.ref_CausaleMagazzino'] = id_caus_mag
+					order['EB_OrdiniClienti.ref_TitDepUscita'] = id_titdep
 
-				result = client.select_data('EB_OrdiniClienti', ['EB_OrdiniClienti.id'], kongalib.OperandEQ('EB_OrdiniClienti.RifAggiuntivo1', order['EB_OrdiniClienti.RifAggiuntivo1']))
-				if not result:
-					order_id = client.insert_record('EB_OrdiniClienti', order, code_azienda)[0]
-					order = client.get_record('EB_OrdiniClienti', id=order_id)
-					total = kongalib.Decimal(document.find('Amounts/Total').text or '0')
-					diff = total - order['TotaleDocumento']
-					if diff:
-						um, vat = get_product_info(client, params['code_rounding_prod'])
-						order['@rows'].append({
-							'EB_RigheOrdiniClienti.code_Articolo': params['code_rounding_prod'],
-							'EB_RigheOrdiniClienti.DescArticolo': 'Arrotondamento',
-							'EB_RigheOrdiniClienti.Quantita': 1,
-							'EB_RigheOrdiniClienti.code_RigheUnitaMisura': um,
-							'EB_RigheOrdiniClienti.ValoreUnitario': diff,
-							'EB_RigheOrdiniClienti.ValoreUnitIVAInclusa': diff,
-							'EB_RigheOrdiniClienti.code_AliquotaIVA': vat,
-						})
-						client.update_record('EB_OrdiniClienti', id=order_id, data=order)
-
+					bc_num = order['EB_OrdiniClienti.RifAggiuntivo1']
+					result = client.select_data('EB_OrdiniClienti', ['EB_OrdiniClienti.id', 'EB_OrdiniClienti.NumeroInterno'], kongalib.OperandEQ('EB_OrdiniClienti.RifAggiuntivo1', bc_num))
+					if not result:
+						try:
+							order_id, order_code = client.insert_record('EB_OrdiniClienti', order, code_azienda)
+						except Exception as e:
+							logging.error("Errore nell'inserimento ordine: %s" % str(e))
+							logging.debug("Dati ordine: %s" % pformat(order))
+							continue
+						else:
+							logging.info("Aggiunto nuovo ordine con numero interno %s" % order_code)
+						order = client.get_record('EB_OrdiniClienti', id=order_id)
+						total = kongalib.Decimal(document.find('Amounts/Total').text or '0')
+						diff = total - order['EB_OrdiniClienti.TotaleDocumento']
+						if diff:
+							um, vat = get_product_info(client, params['code_rounding_prod'])
+							order['@rows'].append({
+								'EB_RigheOrdiniClienti.code_Articolo': params['code_rounding_prod'],
+								'EB_RigheOrdiniClienti.DescArticolo': 'Arrotondamento',
+								'EB_RigheOrdiniClienti.Quantita': 1,
+								'EB_RigheOrdiniClienti.code_RigheUnitaMisura': um,
+								'EB_RigheOrdiniClienti.ValoreUnitario': diff,
+								'EB_RigheOrdiniClienti.ValoreUnitIVAInclusa': diff,
+								'EB_RigheOrdiniClienti.code_AliquotaIVA': vat,
+							})
+							try:
+								client.update_record('EB_OrdiniClienti', id=order_id, data=order)
+							except Exception as e:
+								logging.error("Errore nell'inserimento riga di arrotondamento: %s" % str(e))
+								logging.debug("Dati ordine: %s" % pformat(order))
+							else:
+								logging.warning("Aggiunta riga di arrotondamento all'ordine %s" % order_code)
+					else:
+						order_id, order_code = result[0]
+						logging.warning("Ricevuto ordine già inserito con numero bindCommerce %s e registrato con numero interno %s" % (bc_num, order_code))
+						existing_order = client.get_record('EB_OrdiniClienti', id=order_id)
+						if existing_order['EB_OrdiniClienti.RifAggiuntivo3'] != order['EB_OrdiniClienti.RifAggiuntivo3']:
+							existing_order['EB_OrdiniClienti.RifAggiuntivo3'] = order['EB_OrdiniClienti.RifAggiuntivo3']
+							for key in list(existing_order.keys()):
+								if key.startswith('@'):
+									del existing_order[key]
+							try:
+								client.update_record('EB_OrdiniClienti', id=order_id, data=existing_order)
+							except Exception as e:
+								logging.error("Errore nell'aggiornamento dello stato dell'ordine %s: %s" % (order_code, str(e)))
+								logging.debug("Dati ordine: %s" % pformat(existing_order))
+							else:
+								logging.info("Aggiornato lo stato dell'ordine %s a: %s" % (order_code, order['EB_OrdiniClienti.RifAggiuntivo3']))
+					commit = True
+				finally:
+					if commit:
+						client.commit_transaction()
+					else:
+						client.rollback_transaction()
 	except:
 		client.rollback_transaction()
 		raise
 	else:
-		client.commit_transaction()
+		if options.dry_run:
+			client.rollback_transaction()
+		else:
+			client.commit_transaction()
 	finally:
-		if not kongautil.is_batch():
+		if not options.quiet:
 			kongaui.close_progress()
+		logging.info('Termine importazione ordini')
+	
+	if not options.quiet:
+		kongautil.print_log(log, 'Esito importazione')
+
 
 
 
