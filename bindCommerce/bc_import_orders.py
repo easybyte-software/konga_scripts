@@ -341,7 +341,9 @@ def main():
 						logging.error("Errore nella preparazione dei dati dell'ordine: %s: %s" % (type(e).__name__, str(e)))
 						continue
 
-					result = client.select_data('EB_ClientiFornitori', ['EB_ClientiFornitori.Codice'], kongalib.OperandEQ('EB_ClientiFornitori.CodiceAlternativo', customer['EB_ClientiFornitori.CodiceAlternativo']))
+					result = client.select_data('EB_ClientiFornitori', ['EB_ClientiFornitori.Codice'], kongalib.OperandEQ('EB_ClientiFornitori.PartitaIVA', customer['EB_ClientiFornitori.PartitaIVA']))
+					if not result:
+						result = client.select_data('EB_ClientiFornitori', ['EB_ClientiFornitori.Codice'], kongalib.OperandEQ('EB_ClientiFornitori.CodiceAlternativo', customer['EB_ClientiFornitori.CodiceAlternativo']))
 					if result:
 						customer_code = result[0][0]
 					else:
