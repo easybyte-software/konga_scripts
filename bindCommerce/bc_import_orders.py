@@ -327,7 +327,7 @@ def main():
 			logging.error('Errore di richiesta ordini da bindCommerce: %s' % str(e))
 			raise
 		if response.text:
-			print(response.text)
+			# print(response.text)
 			file = io.BytesIO(response.text.encode('utf-8'))
 			root = ET.ElementTree().parse(file)
 
