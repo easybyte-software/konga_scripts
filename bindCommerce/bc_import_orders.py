@@ -167,13 +167,19 @@ def main():
 			return (' '.join([ surname, name ])).strip()
 
 	def ensure_country(code):
-		return val_nations[code or 'IT']
+		code = code or 'IT'
+		if code not in val_nations:
+			raise ValueError('Codice nazione "%s" non supportato' % code)
+		return val_nations[code]
 
 	def ensure_phone(phone, mobile):
 		return ' - '.join([ p for p in [ phone, mobile ] if p ])
 
 	def ensure_payment(name):
-		return payment_code[name.lower()]
+		name = name.lower()
+		if name not in payment_code:
+			raise ValueError('Tipo di pagamento "%s" non configurato' % name)
+		return payment_code[name]
 
 	def ensure_vat(rate):
 		return vat_code[kongalib.Decimal(rate)]
@@ -321,6 +327,7 @@ def main():
 			logging.error('Errore di richiesta ordini da bindCommerce: %s' % str(e))
 			raise
 		if response.text:
+			print(response.text)
 			file = io.BytesIO(response.text.encode('utf-8'))
 			root = ET.ElementTree().parse(file)
 
@@ -341,7 +348,10 @@ def main():
 						logging.error("Errore nella preparazione dei dati dell'ordine: %s: %s" % (type(e).__name__, str(e)))
 						continue
 
-					result = client.select_data('EB_ClientiFornitori', ['EB_ClientiFornitori.Codice'], kongalib.OperandEQ('EB_ClientiFornitori.PartitaIVA', customer['EB_ClientiFornitori.PartitaIVA']))
+					if customer['EB_ClientiFornitori.PartitaIVA']:
+						result = client.select_data('EB_ClientiFornitori', ['EB_ClientiFornitori.Codice'], kongalib.OperandEQ('EB_ClientiFornitori.PartitaIVA', customer['EB_ClientiFornitori.PartitaIVA']))
+					else:
+						result = None
 					if not result:
 						result = client.select_data('EB_ClientiFornitori', ['EB_ClientiFornitori.Codice'], kongalib.OperandEQ('EB_ClientiFornitori.CodiceAlternativo', customer['EB_ClientiFornitori.CodiceAlternativo']))
 					if result:
