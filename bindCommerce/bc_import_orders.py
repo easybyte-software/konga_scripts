@@ -327,7 +327,10 @@ def main():
 			logging.error('Errore di richiesta ordini da bindCommerce: %s' % str(e))
 			raise
 		if response.text:
-			# print(response.text)
+			response_file = BASE_NAME + '.xml'
+			with open(response_file, 'w') as file:
+				file.write(response.text)
+
 			file = io.BytesIO(response.text.encode('utf-8'))
 			root = ET.ElementTree().parse(file)
 
@@ -361,7 +364,6 @@ def main():
 							customer_from = 'ottenuto da codice alternativo %s' % customer['EB_ClientiFornitori.CodiceAlternativo']
 					if result:
 						customer_code = result[0][0]
-						logging.info("")
 					else:
 						customer_from = 'nuovo cliente'
 						customer['EB_ClientiFornitori.Codice'] = customer['EB_ClientiFornitori.CodiceAlternativo']
