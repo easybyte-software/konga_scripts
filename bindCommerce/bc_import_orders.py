@@ -347,16 +347,23 @@ def main():
 					except Exception as e:
 						logging.error("Errore nella preparazione dei dati dell'ordine: %s: %s" % (type(e).__name__, str(e)))
 						continue
-
+					
 					if customer['EB_ClientiFornitori.PartitaIVA']:
 						result = client.select_data('EB_ClientiFornitori', ['EB_ClientiFornitori.Codice'], kongalib.OperandEQ('EB_ClientiFornitori.PartitaIVA', customer['EB_ClientiFornitori.PartitaIVA']))
+						if result:
+							customer_from = 'ottenuto da partita IVA %s' % customer['EB_ClientiFornitori.PartitaIVA']
 					else:
+						logging.warning('Ricevuto ordine con dati cliente senza partita IVA')
 						result = None
 					if not result:
 						result = client.select_data('EB_ClientiFornitori', ['EB_ClientiFornitori.Codice'], kongalib.OperandEQ('EB_ClientiFornitori.CodiceAlternativo', customer['EB_ClientiFornitori.CodiceAlternativo']))
+						if result:
+							customer_from = 'ottenuto da codice alternativo %s' % customer['EB_ClientiFornitori.CodiceAlternativo']
 					if result:
 						customer_code = result[0][0]
+						logging.info("")
 					else:
+						customer_from = 'nuovo cliente'
 						customer['EB_ClientiFornitori.Codice'] = customer['EB_ClientiFornitori.CodiceAlternativo']
 						customer['EB_ClientiFornitori.Tipo'] = 1
 						try:
@@ -419,7 +426,7 @@ def main():
 							logging.debug("Dati ordine: %s" % pformat(order))
 							continue
 						else:
-							logging.info("Aggiunto nuovo ordine con numero interno %s" % order_code)
+							logging.info("Aggiunto nuovo ordine con numero interno %s associato al codice cliente %s (%s)" % (order_code, customer_code, customer_from))
 						order = client.get_record('EB_OrdiniClienti', id=order_id)
 						total = kongalib.Decimal(document.find('Amounts/Total').text or '0')
 						diff = total - order['EB_OrdiniClienti.TotaleDocumento']
